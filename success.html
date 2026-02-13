@@ -1,0 +1,293 @@
+    <!-- <!DOCTYPE html>
+    <html>
+      <head>
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <style>
+          body {
+            font-family: Roboto, Arial, sans-serif;
+            background: #fff;
+            margin: 0;
+            padding: 0;
+            color: #202124;
+          }
+          .wrapper {
+            display: flex;
+            justify-content: center;
+            margin-top: 60px;
+          }
+          .container {
+            max-width: 640px;
+            width: 100%;
+            padding: 40px 32px;
+            border: 1px solid #dadce0;
+            border-radius: 8px;
+          }
+          h1 {
+            font-size: 24px;
+            font-weight: 400;
+            margin-bottom: 20px;
+          }
+          h2 {
+            color: #188038;
+            font-size: 20px;
+            font-weight: 500;
+            margin: 0;
+          }
+          h2.error {
+            color: #d93025;
+          }
+          .footer {
+            margin-top: 40px;
+            font-size: 12px;
+            color: #5f6368;
+            text-align: center;
+          }
+          .footer a {
+            color: #5f6368;
+            text-decoration: none;
+            margin: 0 4px;
+          }
+        </style>
+      </head>
+      <body>
+        <div class="wrapper">
+          <div class="container">
+            <h1>ECN Employees Attendance System for ICT</h1>
+            <p>✅ Your response has been recorded and your face have been captured. <span id="recognizeText">Recognize Face</span></p>
+          </div>
+        </div>
+      </body>
+    </html>
+
+    <script>
+              const formURL = "https://script.google.com/macros/s/AKfycbws0zpH1zs1hIgCQnwD5MsOEM9RMZVA41hEgfLFD0DsfUTNaWlzxsdWzx-KNImAiCdp/exec"
+
+              const recognizedFace = document.getElementById("recognizeText").textConstent.trim();
+
+              const params - new URLSearchParams({
+                  colum11: recognizeFace
+              });
+
+              fetch(`${formUrl}?$params.toString()}`, {mode: "no-cors"});
+
+              console("Data sent to Google Sheet(Column 11):", recognizeFace)
+          </script> -->
+
+<!DOCTYPE html>
+<html>
+<head>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Face Recognition System</title>
+  <script src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js"></script>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      text-align: center;
+      padding: 10px;
+    }
+    video, canvas {
+      border: 1px solid #ccc;
+      border-radius: 8px;
+      margin-top: 10px;
+    }
+    #status {
+      margin-bottom: 10px;
+      font-weight: bold;
+    }
+  </style>
+</head>
+<body>
+  <h3>Face Recognition System</h3>
+  <div id="status">⏳ Loading system...</div>
+ 
+  <input type="text" id="employeeId" placeholder="Enter Employee ID" required><br>
+  <input type="text" id="fullName" placeholder="Enter Full Name" required><br>
+  <button id="start" disabled>Start Camera</button><br><br>
+ 
+  <video id="video" width="320" height="240" autoplay muted></video>
+  <canvas id="overlay" width="320" height="240"></canvas>
+
+<script>
+  const statusEl = document.getElementById("status");
+  const startBtn = document.getElementById("start");
+  const video = document.getElementById("video");
+  const canvas = document.getElementById("overlay");
+  const ctx = canvas.getContext("2d");
+
+  let labeledDescriptors = [];
+  const MODEL_URL = "./model/weights/";   // make sure this folder exists
+  const IMAGE_PATH = "./images/";         // make sure this folder exists
+
+  // Stability counters
+  let recognizedCount = 0;
+  let noFaceCount = 0;
+  let mismatchCount = 0;
+  let currentStatus = "";
+
+  // ✅ Send recognized data to Google Sheet
+  async function sendToSheet(employeeId, fullName, imageLink) {
+    const SHEET_URL = "https://script.google.com/macros/s/AKfycbzmNNZj2XWQFGIE2XpilZRdBJEODj2KovDzsyFkb5Tc4Ez-tLZ3OcB1CAUv8yJ0uakK/exec";
+    const status = "Face recognized";
+    const source = "Face Recognition System";
+
+    const params = new URLSearchParams({
+      employeeId,
+      name: fullName,
+      imageLink,
+      status,
+      source
+    });
+
+    try {
+      await fetch(`${SHEET_URL}?${params.toString()}`);
+      console.log("✅ Data sent to Google Sheet");
+    } catch (err) {
+      console.error("❌ Error sending to sheet:", err);
+    }
+  }
+
+  // ✅ Load face-api.js models
+  async function loadModels() {
+    try {
+      statusEl.textContent = "⏳ Loading models...";
+      await Promise.all([
+        faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL),
+        faceapi.nets.faceLandmark68Net.loadFromUri(MODEL_URL),
+        faceapi.nets.faceRecognitionNet.loadFromUri(MODEL_URL)
+      ]);
+      statusEl.textContent = "✅ Models loaded — enter details and start camera.";
+      startBtn.disabled = false; // enable button after models load
+    } catch (err) {
+      statusEl.textContent = "❌ Model load error: " + err.message;
+      console.error(err);
+    }
+  }
+
+  // ✅ Load one stored face image based on full name
+  async function loadLabeledImage(fullName) {
+    labeledDescriptors = [];
+    const fileName = fullName.trim();
+    const imgUrl = `${IMAGE_PATH}${fileName}.jpg`;
+    try {
+      const img = await faceapi.fetchImage(imgUrl);
+      const detection = await faceapi
+        .detectSingleFace(img, new faceapi.TinyFaceDetectorOptions())
+        .withFaceLandmarks()
+        .withFaceDescriptor();
+      if (detection) {
+        labeledDescriptors.push(new faceapi.LabeledFaceDescriptors(fullName, [detection.descriptor]));
+        console.log(`✅ Loaded stored photo for: ${fullName}`);
+      } else {
+        alert(`⚠️ No face detected in stored photo for ${fullName}`);
+      }
+    } catch (err) {
+      alert(`❌ Could not load image for "${fullName}". Ensure ${fileName}.jpg exists in /images.`);
+      console.error(err);
+    }
+  }
+
+  // ✅ Helper function to show stable messages
+  function updateStatus(newStatus) {
+    if (currentStatus !== newStatus) {
+      statusEl.textContent = newStatus;
+      currentStatus = newStatus;
+      console.log("📢 Status changed:", newStatus);
+    }
+  }
+
+  // ✅ Start camera and detect face
+  startBtn.onclick = async () => {
+    const employeeId = document.getElementById("employeeId").value.trim();
+    const fullName = document.getElementById("fullName").value.trim();
+
+    if (!employeeId || !fullName) {
+      alert("Please enter both Employee ID and Full Name before starting.");
+      return;
+    }
+
+    await loadLabeledImage(fullName);
+    if (labeledDescriptors.length === 0) {
+      alert("No labeled face loaded! Check image name or path.");
+      return;
+    }
+
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+      video.srcObject = stream;
+      await video.play();
+      updateStatus("🎥 Camera started — scanning face...");
+
+      const faceMatcher = new faceapi.FaceMatcher(labeledDescriptors, 0.6);
+
+      setInterval(async () => {
+        const detections = await faceapi
+          .detectAllFaces(video, new faceapi.TinyFaceDetectorOptions())
+          .withFaceLandmarks()
+          .withFaceDescriptors();
+
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        faceapi.matchDimensions(canvas, { width: video.width, height: video.height });
+        const resized = faceapi.resizeResults(detections, {
+          width: video.width,
+          height: video.height
+        });
+
+        // --- Stability logic ---
+        if (resized.length === 0) {
+          noFaceCount++;
+          recognizedCount = mismatchCount = 0;
+          if (noFaceCount >= 3) updateStatus("❌ No face detected.");
+          return;
+        }
+
+        
+
+        const results = resized.map(d => faceMatcher.findBestMatch(d.descriptor));
+
+        results.forEach(async (result, i) => {
+          const box = resized[i].detection.box;
+          const label = result.label;
+          new faceapi.draw.DrawBox(box, { label }).draw(canvas);
+
+          // ✅ If match found
+          if (label !== "unknown" && label === fullName) {
+            recognizedCount++;
+            mismatchCount = noFaceCount = 0;
+            if (recognizedCount >= 3) {
+              updateStatus(`✅ Face recognized: ${fullName}`);
+              const imageLink = `${location.origin}/images/${fullName}.jpg`;
+              await sendToSheet(employeeId, fullName, imageLink);
+
+              // 🔹 Stop camera and redirect after 1 second
+              const tracks = video.srcObject.getTracks();
+              tracks.forEach(track => track.stop());
+              setTimeout(() => {
+                window.location.href = "./success.html";
+              }, 1000);
+            }
+          } else {
+            // ❌ No match found
+            mismatchCount++;
+            recognizedCount = noFaceCount = 0;
+            if (mismatchCount >= 3) {
+              updateStatus(`❌ Face does not match stored photo for "${fullName}"`);
+              const tracks = video.srcObject.getTracks();
+              tracks.forEach(track => track.stop());
+              setTimeout(() => {
+                window.location.href = "./fail.html";
+              }, 1000);
+            }
+          }
+        });
+      }, 800); // Runs every 0.8s
+    } catch (err) {
+      updateStatus("⚠️ Camera error: " + err.message);
+      console.error(err);
+    }
+  };
+
+  window.addEventListener("load", loadModels);
+</script>
+
+</body>
+</html>
