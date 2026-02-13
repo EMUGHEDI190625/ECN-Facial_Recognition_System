@@ -130,4 +130,65 @@
 
     startBtn.onclick = async () => {
       const employeeId = document.getElementById("employeeId").value.trim();
-      if (!employeeId) re
+      if (!employeeId) return alert("Please enter Employee ID.");
+
+      await loadAuthorizedFaces();
+
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+        video.srcObject = stream;
+        await video.play();
+        faceStatusEl.style.color = "green";
+        faceStatusEl.textContent = "🎥 Camera started — detecting faces...";
+
+        setInterval(async () => {
+          const detections = await faceapi
+            .detectAllFaces(video, new faceapi.TinyFaceDetectorOptions())
+            .withFaceLandmarks()
+            .withFaceDescriptors();
+
+          ctx.clearRect(0, 0, canvas.width, canvas.height);
+          faceapi.matchDimensions(canvas, { width: video.width, height: video.height });
+          const resized = faceapi.resizeResults(detections, { width: video.width, height: video.height });
+
+          const results = resized.map(d => faceMatcher.findBestMatch(d.descriptor));
+          const today = new Date().toISOString().split("T")[0];
+
+          for (let i = 0; i < results.length; i++) {
+            const result = results[i];
+            const box = resized[i].detection.box;
+            const statusText = result.label === "unknown" ? "Unauthorized" : `Authorized: ${result.label}`;
+            const timeNow = new Date().toLocaleTimeString();
+
+            // Draw label + timestamp on video
+            const drawBox = new faceapi.draw.DrawBox(box, { label: `${statusText} | ${timeNow}` });
+            drawBox.draw(canvas);
+
+            // Always show face detected info in green
+            faceStatusEl.textContent = `Face detected: ${statusText} | ${timeNow}`;
+
+            if (!recognizedToday[employeeId]) recognizedToday[employeeId] = {};
+            if (!recognizedToday[employeeId][today]) {
+              recognizedToday[employeeId][today] = true;
+
+              const captureCanvas = document.createElement("canvas");
+              captureCanvas.width = video.videoWidth;
+              captureCanvas.height = video.videoHeight;
+              captureCanvas.getContext("2d").drawImage(video, 0, 0, captureCanvas.width, captureCanvas.height);
+              const imageDataURL = captureCanvas.toDataURL("image/jpeg");
+
+              await sendToSheet(employeeId, imageDataURL, statusText);
+            }
+          }
+        }, 1500);
+      } catch(err) {
+        faceStatusEl.style.color = "red";
+        faceStatusEl.textContent = "⚠️ Camera error: " + err.message;
+        console.error(err);
+      }
+    };
+
+    window.addEventListener("load", loadModels);
+  </script>
+</body>
+</html>
