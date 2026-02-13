@@ -102,31 +102,34 @@
       faceMatcher = new faceapi.FaceMatcher(labeledDescriptors, 0.6);
     }
 
-    async function sendToSheet(employeeId, imageData, status) {
-      const data = { employeeId, imageLink: imageData, status, timestamp: new Date().toLocaleString() };
-      try {
-        const response = await fetch(SHEET_URL, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(data)
-        });
+    async function sendAttendanceToScript(employeeId, status, imageDataURL){
+  const scriptURL = "https://script.google.com/macros/s/AKfycbzY0QiXZq23BrmqXMtkRnmptg59V11XrjQDNp9j0Lv9J1QrELWBAitSTClW8AmOK8yTQA/exec";
 
-        // ✅ Show submission feedback below face status
-        if (response.ok) {
-          sheetStatusEl.style.color = "green";
-          sheetStatusEl.textContent = `✅ ${status} for ${employeeId} sent successfully at ${new Date().toLocaleTimeString()}`;
-        } else {
-          sheetStatusEl.style.color = "red";
-          sheetStatusEl.textContent = `❌ Failed to send data for ${employeeId} — ${response.statusText}`;
+        try{
+          const res = await fetch(scriptURL,{
+            method:"POST",
+            headers:{ "Content-Type":"application/json" },
+            body: JSON.stringify({
+              employeeId: employeeId,
+              status: status,
+              imageLink: imageDataURL,
+              time: new Date().toISOString()
+            })
+          });
+      
+          if(res.ok){
+            sheetStatusEl.style.color="green";
+            sheetStatusEl.textContent="✅ Attendance submitted successfully";
+          }else{
+            sheetStatusEl.style.color="red";
+            sheetStatusEl.textContent="❌ Server rejected submission";
+          }
+      
+        }catch(err){
+          sheetStatusEl.style.color="red";
+          sheetStatusEl.textContent="❌ Network Error: "+err.message;
         }
-
-        console.log("✅ Data sent to Google Sheet:", data);
-      } catch(err) {
-        sheetStatusEl.style.color = "red";
-        sheetStatusEl.textContent = `❌ Error sending data: ${err.message}`;
-        console.error("❌ Error sending to Google Sheet:", err);
       }
-    }
 
     startBtn.onclick = async () => {
       const employeeId = document.getElementById("employeeId").value.trim();
@@ -177,7 +180,8 @@
               captureCanvas.getContext("2d").drawImage(video, 0, 0, captureCanvas.width, captureCanvas.height);
               const imageDataURL = captureCanvas.toDataURL("image/jpeg");
 
-              await sendToSheet(employeeId, imageDataURL, statusText);
+              await sendAttendanceToScript(employeeId, statusText, imageDataURL);
+
             }
           }
         }, 1500);
@@ -192,4 +196,5 @@
   </script>
 </body>
 </html>
+
 
