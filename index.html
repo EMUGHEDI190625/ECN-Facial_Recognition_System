@@ -61,7 +61,7 @@
     let lastRecognized = null;
     let recognizedToday = {}; // { employeeId: { YYYY-MM-DD: true } }
 
-    const SHEET_URL = "https://script.google.com/macros/s/AKfycbz82Fcb4N85wPztjkowlsboQd2yJU4tRFCOJVNb-fXnRB0K0sJ7Hl5UwiIxA5Gd2czG1Q/exec";
+    const SHEET_URL = "https://script.google.com/macros/s/AKfycbz2UisT_yirI0_67Ov1ytzZZo_dPunX24efdIFRYfaj_LZH9DoaJilVYjJvvLI8nWmTKw/exec";
 
     async function loadModels() {
       faceStatusEl.textContent = "⏳ Loading models...";
@@ -103,32 +103,30 @@
     }
 
     async function sendAttendanceToScript(employeeId, status, imageDataURL){
-  const scriptURL = "https://script.google.com/macros/s/AKfycbzY0QiXZq23BrmqXMtkRnmptg59V11XrjQDNp9j0Lv9J1QrELWBAitSTClW8AmOK8yTQA/exec";
 
-        try{
-          const res = await fetch(scriptURL,{
-            method:"POST",
-            headers:{ "Content-Type":"application/json" },
-            body: JSON.stringify({
-              employeeId: employeeId,
-              status: status,
-              imageLink: imageDataURL,
-              time: new Date().toISOString()
-            })
-          });
+      const url = "YOUR_NEW_WEBAPP_URL";
       
-          if(res.ok){
-            sheetStatusEl.style.color="green";
-            sheetStatusEl.textContent="✅ Attendance submitted successfully";
-          }else{
-            sheetStatusEl.style.color="red";
-            sheetStatusEl.textContent="❌ Server rejected submission";
-          }
+      const formData = new FormData();
+      formData.append("employeeId", employeeId);
+      formData.append("status", status);
+      formData.append("image", imageDataURL);
       
-        }catch(err){
-          sheetStatusEl.style.color="red";
-          sheetStatusEl.textContent="❌ Network Error: "+err.message;
-        }
+      try{
+        const res = await fetch(url,{
+          method:"POST",
+          body:formData
+        });
+      
+        const text = await res.text();
+        console.log(text);
+      
+        sheetStatusEl.style.color="green";
+        sheetStatusEl.textContent="✅ Attendance sent";
+      
+      }catch(err){
+        sheetStatusEl.style.color="red";
+        sheetStatusEl.textContent="❌ Network Error: "+err.message;
+      }
       }
 
     startBtn.onclick = async () => {
@@ -196,6 +194,7 @@
   </script>
 </body>
 </html>
+
 
 
 
