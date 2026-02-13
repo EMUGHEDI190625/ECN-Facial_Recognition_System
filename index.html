@@ -61,8 +61,6 @@
     let lastRecognized = null;
     let recognizedToday = {}; // { employeeId: { YYYY-MM-DD: true } }
 
-    const SHEET_URL = "https://script.google.com/macros/s/AKfycbzfsB_Muw-Xn5E_6W1FekDxfNnV37S0P947hFeft9r4cTLzlWy-a-_PvuIRy1O7yRLg_Q/exec";
-
     async function loadModels() {
       faceStatusEl.textContent = "⏳ Loading models...";
       try {
@@ -104,7 +102,7 @@
 
     async function sendAttendanceToScript(employeeId, status, imageDataURL){
 
-      const url = "YOUR_NEW_WEBAPP_URL";
+      const url = "https://script.google.com/macros/s/AKfycbzDjedfst6P1Xs3_3skFYbcddHmy8ggL6EArGd9lcBxh6mcCGt9Mdwq2L43A_0-lZg9zQ/exec";
       
       const formData = new FormData();
       formData.append("employeeId", employeeId);
@@ -194,6 +192,7 @@
   </script>
 </body>
 </html>
+
 
 
 
