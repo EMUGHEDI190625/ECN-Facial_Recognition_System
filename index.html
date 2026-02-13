@@ -54,10 +54,10 @@
     // Prevent duplicate submissions per session
     let lastRecognized = null;
 
-    // Prevent multiple attendance per day
+    // Prevent multiple attendance per employee per day (per session)
     let recognizedToday = {}; // { employeeId: { YYYY-MM-DD: true } }
 
-    // Your Google Apps Script Web App URL
+    // Google Apps Script Web App URL
     const SHEET_URL = "https://script.google.com/macros/s/AKfycbzY0QiXZq23BrmqXMtkRnmptg59V11XrjQDNp9j0Lv9J1QrELWBAitSTClW8AmOK8yTQA/exec";
 
     // Load face-api.js models
@@ -80,7 +80,7 @@
     // Load all authorized faces
     async function loadAuthorizedFaces() {
       labeledDescriptors = [];
-      const authorizedNames = ["John Doe", "Jane Smith", "Ikata Kenoye"]; // your employees
+      const authorizedNames = ["John Doe", "Jane Smith", "Ikata Kenoye"]; // replace with your employees
       for (const name of authorizedNames) {
         try {
           const img = await faceapi.fetchImage(`./images/${name}.jpg`);
@@ -105,7 +105,7 @@
       faceMatcher = new faceapi.FaceMatcher(labeledDescriptors, 0.6);
     }
 
-    // Send captured image to Google Sheet with visual confirmation
+    // Send captured image to Google Sheet with visual feedback
     async function sendToSheet(employeeId, imageData, status) {
       const data = {
         employeeId,
@@ -173,29 +173,28 @@
 
             // Refine recognition label
             const statusText = result.label === "unknown" ? "Unauthorized" : `Authorized: ${result.label}`;
-
-            // Draw box & timestamp on canvas
             const timeNow = new Date().toLocaleTimeString();
+
+            // Draw box & timestamp directly on canvas
             const drawBox = new faceapi.draw.DrawBox(box, { label: `${statusText} | ${timeNow}` });
             drawBox.draw(canvas);
 
-            // Capture frame
-            const captureCanvas = document.createElement("canvas");
-            captureCanvas.width = video.videoWidth;
-            captureCanvas.height = video.videoHeight;
-            captureCanvas.getContext("2d").drawImage(video, 0, 0, captureCanvas.width, captureCanvas.height);
-            const imageDataURL = captureCanvas.toDataURL("image/jpeg");
+            // Update status below video
+            statusEl.textContent = `Face detected: ${statusText} | ${timeNow}`;
 
-            // Prevent duplicate submission
-            if (lastRecognized !== statusText) {
-              lastRecognized = statusText;
+            // Prevent duplicate submission for same employee today
+            if (!recognizedToday[employeeId]) recognizedToday[employeeId] = {};
+            if (!recognizedToday[employeeId][today]) {
+              recognizedToday[employeeId][today] = true;
 
-              // Check daily attendance
-              if (!recognizedToday[employeeId]) recognizedToday[employeeId] = {};
-              if (!recognizedToday[employeeId][today]) {
-                recognizedToday[employeeId][today] = true;
-                await sendToSheet(employeeId, imageDataURL, statusText);
-              }
+              // Capture frame
+              const captureCanvas = document.createElement("canvas");
+              captureCanvas.width = video.videoWidth;
+              captureCanvas.height = video.videoHeight;
+              captureCanvas.getContext("2d").drawImage(video, 0, 0, captureCanvas.width, captureCanvas.height);
+              const imageDataURL = captureCanvas.toDataURL("image/jpeg");
+
+              await sendToSheet(employeeId, imageDataURL, statusText);
             }
           }
         }, 1500); // every 1.5 sec
