@@ -134,6 +134,7 @@
     startBtn.onclick = async () => {
       const employeeId = document.getElementById("employeeId").value.trim();
       if (!employeeId) return alert("Please enter Employee ID.");
+      startBtn.disabled = true;
 
       await loadAuthorizedFaces();
 
@@ -189,6 +190,7 @@
         faceStatusEl.style.color = "red";
         faceStatusEl.textContent = "⚠️ Camera error: " + err.message;
         console.error(err);
+        startBtn.disabled = false
       }
     };
 
@@ -196,6 +198,7 @@
   </script>
 </body>
 </html>
+
 
 
 
