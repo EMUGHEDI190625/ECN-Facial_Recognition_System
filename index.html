@@ -49,151 +49,148 @@
   <video id="video" width="320" height="240" autoplay muted></video>
   <canvas id="overlay" width="320" height="240"></canvas>
 
-  <script>
-    const faceStatusEl = document.getElementById("faceStatus");
-    const sheetStatusEl = document.getElementById("sheetStatus");
-    const startBtn = document.getElementById("startBtn");
-    const video = document.getElementById("video");
-    const canvas = document.getElementById("overlay");
-    const ctx = canvas.getContext("2d");
+<script>
+const faceStatusEl = document.getElementById("faceStatus");
+const sheetStatusEl = document.getElementById("sheetStatus");
+const startBtn = document.getElementById("startBtn");
+const video = document.getElementById("video");
+const canvas = document.getElementById("overlay");
+const ctx = canvas.getContext("2d");
 
-    let labeledDescriptors = [];
-    let faceMatcher;
+let labeledDescriptors = [];
+let faceMatcher;
+let recognizedToday = {}; // Track daily recognition per employee
 
-    let recognizedToday = {}; // { employeeId: { YYYY-MM-DD: true } }
+// Load face-api models
+async function loadModels() {
+  faceStatusEl.textContent = "⏳ Loading models...";
+  await Promise.all([
+    faceapi.nets.tinyFaceDetector.loadFromUri('https://justadudewhohacks.github.io/face-api.js/models/'),
+    faceapi.nets.faceLandmark68Net.loadFromUri('https://justadudewhohacks.github.io/face-api.js/models/'),
+    faceapi.nets.faceRecognitionNet.loadFromUri('https://justadudewhohacks.github.io/face-api.js/models/')
+  ]);
+  faceStatusEl.textContent = "✅ Models loaded. Enter Employee ID and start camera.";
+  startBtn.disabled = false;
+}
 
-    // Load face-api.js models
-    async function loadModels() {
-      faceStatusEl.textContent = "⏳ Loading models...";
-      try {
-        await Promise.all([
-          faceapi.nets.tinyFaceDetector.loadFromUri('https://justadudewhohacks.github.io/face-api.js/models/'),
-          faceapi.nets.faceLandmark68Net.loadFromUri('https://justadudewhohacks.github.io/face-api.js/models/'),
-          faceapi.nets.faceRecognitionNet.loadFromUri('https://justadudewhohacks.github.io/face-api.js/models/')
-        ]);
-        faceStatusEl.textContent = "✅ Models loaded. Enter Employee ID and start camera.";
-        startBtn.disabled = false;
-      } catch(err) {
-        faceStatusEl.textContent = "❌ Error loading models: " + err;
-        console.error(err);
+// Load authorized faces
+async function loadAuthorizedFaces() {
+  labeledDescriptors = [];
+  const authorizedNames = ["John Doe", "Jane Smith", "Ikata Kenoye"];
+  for (const name of authorizedNames) {
+    try {
+      const img = await faceapi.fetchImage(`https://raw.githubusercontent.com/EMUGHEDI190625/face-models/main/images/${name}.jpg`);
+      const detection = await faceapi.detectSingleFace(img, new faceapi.TinyFaceDetectorOptions())
+        .withFaceLandmarks().withFaceDescriptor();
+      if (detection) {
+        labeledDescriptors.push(new faceapi.LabeledFaceDescriptors(name, [detection.descriptor]));
+        console.log(`✅ Loaded authorized face for ${name}`);
       }
+    } catch(err) {
+      console.error(err);
     }
+  }
+  faceMatcher = new faceapi.FaceMatcher(labeledDescriptors, 0.6);
+}
 
-    // Load authorized faces
-    async function loadAuthorizedFaces() {
-      labeledDescriptors = [];
-      const authorizedNames = ["John Doe", "Jane Smith", "Ikata Kenoye"];
-      for (const name of authorizedNames) {
-        try {
-          const img = await faceapi.fetchImage(`https://raw.githubusercontent.com/EMUGHEDI190625/face-models/main/images/${name}.jpg`);
-          const detection = await faceapi
-            .detectSingleFace(img, new faceapi.TinyFaceDetectorOptions())
-            .withFaceLandmarks()
-            .withFaceDescriptor();
-          if (detection) {
-            labeledDescriptors.push(new faceapi.LabeledFaceDescriptors(name, [detection.descriptor]));
-            console.log(`✅ Loaded authorized face for ${name}`);
-          } else console.warn(`⚠️ No face detected in ${name}.jpg`);
-        } catch(err) {
-          console.error(err);
+// Function to send face log to Google Sheet
+async function logToSheet(employeeId, fullName, recognized, imageDataURL, coords) {
+  const logData = {
+    "employeeId": employeeId,
+    "fullName": fullName,
+    "recognized": recognized ? "Authorized" : "Unauthorized",
+    "recognizeFaceImagelink": recognized ? imageDataURL : "",
+    "notRecognizeFaceImagelink": !recognized ? imageDataURL : "",
+    "latitude": coords.latitude,
+    "longitude": coords.longitude
+  };
+
+  try {
+    google.script.run.appendToSheet(
+      logData.fullName,
+      logData.employeeId,
+      "", // email
+      logData.latitude,
+      logData.longitude,
+      "Inside Office", // Status can be updated with actual location check if needed
+      "", // officeAddress
+      "", // resolvedAddress
+      recognized ? "Face recognized" : "",
+      logData.recognizeFaceImagelink,
+      !recognized ? "Face not recognized" : "",
+      logData.notRecognizeFaceImagelink
+    );
+    sheetStatusEl.style.color = "green";
+    sheetStatusEl.textContent = "✅ Attendance sent";
+  } catch(err) {
+    sheetStatusEl.style.color = "red";
+    sheetStatusEl.textContent = "❌ Error sending to sheet: " + err.message;
+  }
+}
+
+// Start camera and detection
+startBtn.onclick = async () => {
+  const employeeId = document.getElementById("employeeId").value.trim();
+  if (!employeeId) return alert("Please enter Employee ID.");
+  startBtn.disabled = true;
+
+  await loadAuthorizedFaces();
+
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+    video.srcObject = stream;
+    await video.play();
+    faceStatusEl.textContent = "🎥 Camera started — detecting faces...";
+
+    setInterval(async () => {
+      const detections = await faceapi.detectAllFaces(video, new faceapi.TinyFaceDetectorOptions())
+        .withFaceLandmarks().withFaceDescriptors();
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      faceapi.matchDimensions(canvas, { width: video.width, height: video.height });
+      const resized = faceapi.resizeResults(detections, { width: video.width, height: video.height });
+
+      for (let i = 0; i < resized.length; i++) {
+        const result = faceMatcher.findBestMatch(resized[i].descriptor);
+        const recognized = result.label !== "unknown";
+        const statusText = recognized ? `Authorized: ${result.label}` : "Unauthorized";
+        const timeNow = new Date().toLocaleTimeString();
+        const box = resized[i].detection.box;
+        new faceapi.draw.DrawBox(box, { label: `${statusText} | ${timeNow}` }).draw(canvas);
+        faceStatusEl.textContent = `Face detected: ${statusText} | ${timeNow}`;
+
+        if (!recognizedToday[employeeId]) recognizedToday[employeeId] = {};
+        const today = new Date().toISOString().split("T")[0];
+        if (!recognizedToday[employeeId][today]) {
+          recognizedToday[employeeId][today] = true;
+
+          // Capture image
+          const captureCanvas = document.createElement("canvas");
+          captureCanvas.width = video.videoWidth;
+          captureCanvas.height = video.videoHeight;
+          captureCanvas.getContext("2d").drawImage(video, 0, 0, captureCanvas.width, captureCanvas.height);
+          const imageDataURL = captureCanvas.toDataURL("image/jpeg");
+
+          // Get location
+          if (navigator.geolocation) {
+            navigator.geolocation.getCurrentPosition((pos) => {
+              logToSheet(employeeId, recognized ? result.label : "Unknown", recognized, imageDataURL, pos.coords);
+            }, () => {
+              alert("Location permission denied.");
+            });
+          } else {
+            logToSheet(employeeId, recognized ? result.label : "Unknown", recognized, imageDataURL, {latitude:"", longitude:""});
+          }
         }
       }
-      faceMatcher = new faceapi.FaceMatcher(labeledDescriptors, 0.6);
-    }
+    }, 2000);
+  } catch(err) {
+    faceStatusEl.style.color = "red";
+    faceStatusEl.textContent = "⚠️ Camera error: " + err.message;
+    startBtn.disabled = false;
+  }
+};
 
-    // Send face data to Google Sheet
-    async function sendToSheet(employeeId, fullName, imageLink, recognized, coords){
-      const WEBAPP_URL = "https://script.google.com/macros/s/YOUR_WEBAPP_ID_HERE/exec"; // <-- replace with your WebApp URL
-
-     const params = new URLSearchParams({
-      name: fullName,             // must match Apps Script
-      employeeId: employeeId,
-      recognizeFace: recognized ? "Face recognized" : "",
-      recognizeFaceImagelink: recognized ? imageLink : "",
-      notRecognizeFace: !recognized ? "Face not recognized" : "",
-      notRecognizeFaceImagelink: !recognized ? imageLink : ""
-    });
-    
-    fetch(`${WEBAPP_URL}?${params.toString()}`)
-      .then(res => res.text())
-      .then(text => {
-        console.log("Response from Google Script:", text);
-        sheetStatusEl.style.color="green";
-        sheetStatusEl.textContent="✅ Attendance sent";
-      })
-      .catch(err => {
-        sheetStatusEl.style.color="red";
-        sheetStatusEl.textContent="❌ Error: " + err.message;
-      });
-
-    startBtn.onclick = async () => {
-      const employeeId = document.getElementById("employeeId").value.trim();
-      if (!employeeId) return alert("Please enter Employee ID.");
-      startBtn.disabled = true;
-
-      await loadAuthorizedFaces();
-
-      try {
-        const stream = await navigator.mediaDevices.getUserMedia({ video: true });
-        video.srcObject = stream;
-        await video.play();
-        faceStatusEl.style.color = "green";
-        faceStatusEl.textContent = "🎥 Camera started — detecting faces...";
-
-        setInterval(async () => {
-          const detections = await faceapi
-            .detectAllFaces(video, new faceapi.TinyFaceDetectorOptions())
-            .withFaceLandmarks()
-            .withFaceDescriptors();
-
-          ctx.clearRect(0, 0, canvas.width, canvas.height);
-          faceapi.matchDimensions(canvas, { width: video.width, height: video.height });
-          const resized = faceapi.resizeResults(detections, { width: video.width, height: video.height });
-          const results = resized.map(d => faceMatcher.findBestMatch(d.descriptor));
-          const today = new Date().toISOString().split("T")[0];
-
-          for (let i = 0; i < results.length; i++) {
-            const result = results[i];
-            const box = resized[i].detection.box;
-            const statusText = result.label === "unknown" ? "Unauthorized" : `Authorized: ${result.label}`;
-            const timeNow = new Date().toLocaleTimeString();
-
-            const drawBox = new faceapi.draw.DrawBox(box, { label: `${statusText} | ${timeNow}` });
-            drawBox.draw(canvas);
-
-            faceStatusEl.textContent = `Face detected: ${statusText} | ${timeNow}`;
-
-            if (!recognizedToday[employeeId]) recognizedToday[employeeId] = {};
-            if (!recognizedToday[employeeId][today]) {
-              recognizedToday[employeeId][today] = true;
-
-              const captureCanvas = document.createElement("canvas");
-              captureCanvas.width = video.videoWidth;
-              captureCanvas.height = video.videoHeight;
-              captureCanvas.getContext("2d").drawImage(video, 0, 0, captureCanvas.width, captureCanvas.height);
-              const imageDataURL = captureCanvas.toDataURL("image/jpeg");
-
-              const coords = await new Promise((resolve) =>
-                navigator.geolocation.getCurrentPosition(
-                  pos => resolve(pos.coords),
-                  () => resolve({ latitude: 0, longitude: 0 })
-                )
-              );
-
-              await sendToSheet(employeeId, result.label === "unknown" ? "Unknown" : result.label, imageDataURL, result.label !== "unknown", coords);
-            }
-          }
-        }, 1500);
-      } catch(err) {
-        faceStatusEl.style.color = "red";
-        faceStatusEl.textContent = "⚠️ Camera error: " + err.message;
-        console.error(err);
-        startBtn.disabled = false;
-      }
-    };
-
-    window.addEventListener("load", loadModels);
-  </script>
+window.addEventListener("load", loadModels);
+</script>
 </body>
 </html>
-
