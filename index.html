@@ -181,7 +181,26 @@
               captureCanvas.getContext("2d").drawImage(video, 0, 0, captureCanvas.width, captureCanvas.height);
               const imageDataURL = captureCanvas.toDataURL("image/jpeg");
 
-              await sendAttendanceToScript(employeeId, statusText, imageDataURL);
+              async function sendToSheet(employeeId, fullName, imageLink){
+
+                const WEBAPP_URL = "PASTE_YOUR_WEBAPP_URL_HERE";
+              
+                const recognized = !imageLink.includes("_not_recognized");
+              
+                const params = new URLSearchParams({
+                  FullName: fullName,
+                  employeeId: employeeId,
+                  email: "",
+              
+                  recognizeFace: recognized ? "Face recognized" : "",
+                  recognizeFaceImagelink: recognized ? imageLink : "",
+              
+                  notRecognizeFace: !recognized ? "Face not recognized" : "",
+                  notRecognizeFaceImagelink: !recognized ? imageLink : ""
+                });
+              
+                await fetch(`${WEBAPP_URL}?${params.toString()}`, {mode:"no-cors"});
+              }
 
             }
           }
@@ -198,4 +217,5 @@
   </script>
 </body>
 </html>
+
 
