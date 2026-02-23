@@ -105,7 +105,7 @@ async function logToSheet(employeeId, fullName, recognized, imageDataURL, coords
   };
 
   try {
-    const response = await fetch("https://script.google.com/macros/s/AKfycbxJEUa8yQToHxUeUW0-wuemeFCQKMOM1T0GRhlWC9PMciVFjIPQKeRjV134rqkFPS_fWg/exec", {
+    const response = await fetch("https://script.google.com/macros/s/AKfycby737SLSVTlLRJ84kxfzHJU6RLan8oC_EXssN2OS2zqI4dbzBICIrTm6UfHOxLGDfVsLQ/exec", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(logData)
@@ -191,4 +191,5 @@ window.addEventListener("load", loadModels);
 </script>
 </body>
 </html>
+
 
