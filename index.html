@@ -105,26 +105,26 @@
     async function sendToSheet(employeeId, fullName, imageLink, recognized, coords){
       const WEBAPP_URL = "https://script.google.com/macros/s/YOUR_WEBAPP_ID_HERE/exec"; // <-- replace with your WebApp URL
 
-      const params = new URLSearchParams({
-        "Face Capture status": recognized ? "Authorized" : "Unauthorized",
-        "Face Capture status Unauthorized and Authorized Individuals": recognized ? "" : "Unauthorized",
-        "ImageLink (Authorised Individuals)": recognized ? imageLink : "",
-        "Authorized Individual Image Link (Unauthorized Individual)": !recognized ? imageLink : "",
-        "Unauthorized Individual's Location (Authorized) (Inside Office)": recognized ? `${coords.latitude},${coords.longitude}` : "",
-        "Location Authorised (Outside Office)": recognized ? `${coords.latitude},${coords.longitude}` : "",
-        "Location Unauthorised (Inside Office)": !recognized ? `${coords.latitude},${coords.longitude}` : "",
-        "Location Unauthorised (Outside Office)": !recognized ? `${coords.latitude},${coords.longitude}` : ""
+     const params = new URLSearchParams({
+      name: fullName,             // must match Apps Script
+      employeeId: employeeId,
+      recognizeFace: recognized ? "Face recognized" : "",
+      recognizeFaceImagelink: recognized ? imageLink : "",
+      notRecognizeFace: !recognized ? "Face not recognized" : "",
+      notRecognizeFaceImagelink: !recognized ? imageLink : ""
+    });
+    
+    fetch(`${WEBAPP_URL}?${params.toString()}`)
+      .then(res => res.text())
+      .then(text => {
+        console.log("Response from Google Script:", text);
+        sheetStatusEl.style.color="green";
+        sheetStatusEl.textContent="✅ Attendance sent";
+      })
+      .catch(err => {
+        sheetStatusEl.style.color="red";
+        sheetStatusEl.textContent="❌ Error: " + err.message;
       });
-
-      try {
-        await fetch(`${WEBAPP_URL}?${params.toString()}`, { mode: "no-cors" });
-        sheetStatusEl.style.color = "green";
-        sheetStatusEl.textContent = "✅ Attendance sent";
-      } catch(err) {
-        sheetStatusEl.style.color = "red";
-        sheetStatusEl.textContent = "❌ Network Error: "+err.message;
-      }
-    }
 
     startBtn.onclick = async () => {
       const employeeId = document.getElementById("employeeId").value.trim();
@@ -196,3 +196,4 @@
   </script>
 </body>
 </html>
+
