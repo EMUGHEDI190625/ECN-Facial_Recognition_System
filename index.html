@@ -82,7 +82,9 @@ async function fetchFormData() {
 
     if (!data || !data.length) throw new Error("No data returned");
 
-    const latest = data[data.length - 1];
+    const latest = [...data].reverse()find(row => 
+      Object.values(row).some(v => v !== "" && v !== null)
+    );
 
     // ---------- SUPER NORMALIZER ----------
     const normalize = str =>
@@ -268,6 +270,7 @@ window.addEventListener("load", loadModels);
 </script>
 </body>
 </html>
+
 
 
 
