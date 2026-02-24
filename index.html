@@ -82,7 +82,7 @@ async function fetchFormData() {
 
     if (!data || !data.length) throw new Error("No data returned");
 
-    const latest = [...data].reverse()find(row => 
+    const latest = [...data].reverse().find(row =>
       Object.values(row).some(v => v !== "" && v !== null)
     );
 
@@ -270,6 +270,7 @@ window.addEventListener("load", loadModels);
 </script>
 </body>
 </html>
+
 
 
 
