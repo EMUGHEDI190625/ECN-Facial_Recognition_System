@@ -47,181 +47,179 @@
   <canvas id="overlay" width="320" height="240"></canvas>
 
 <script>
-    const faceStatusEl = document.getElementById("faceStatus");
-    const sheetStatusEl = document.getElementById("sheetStatus");
-    const startBtn = document.getElementById("startBtn");
-    const video = document.getElementById("video");
-    const canvas = document.getElementById("overlay");
-    const ctx = canvas.getContext("2d");
-    
-    let labeledDescriptors = [];
-    let faceMatcher;
-    let recognizedToday = {}; // Track daily recognition per employee
-    let employeeData = {};    // Store latest employee info
-    
-    // ----------------------
-    // Load face-api models
-    async function loadModels() {
-      faceStatusEl.textContent = "⏳ Loading models...";
-      await Promise.all([
-        faceapi.nets.tinyFaceDetector.loadFromUri('https://justadudewhohacks.github.io/face-api.js/models/'),
-        faceapi.nets.faceLandmark68Net.loadFromUri('https://justadudewhohacks.github.io/face-api.js/models/'),
-        faceapi.nets.faceRecognitionNet.loadFromUri('https://justadudewhohacks.github.io/face-api.js/models/')
-      ]);
-      faceStatusEl.textContent = "✅ Models loaded. Fetching latest Form data...";
-      await fetchFormData(); // fetch employee info from Sheet
-      startBtn.disabled = false;
-    }
-    
-    // ----------------------
-    // Fetch latest Google Form submission
-    async function fetchFormData() {
-      try {
-        const response = await fetch("https://script.google.com/macros/s/AKfycbzu0E93436gkuWBh51Ldt7r6-m7yjZkupspevTxnUVjA15X1bXDo-_Sp2EobplRLL8FwA/exec"); 
-        const data = await response.json();
-    
-        // Get latest submission
-        const latest = data[data.length - 1];
-    
-        // Normalize keys to trim spaces and lowercase
-        const normalized = {};
-        Object.keys(latest).forEach(key => {
-          normalized[key.trim().toLowerCase()] = latest[key];
-        });
-    
-        // Map to employeeData using normalized keys
-        employeeData = {
-          fullName: normalized["full name"] || normalized["full_name"] || "Unknown",
-          employeeId: normalized["employees id"] || normalized["employeeid"] || "Unknown"
-        };
-    
-        faceStatusEl.textContent = `✅ Loaded Form data for ${employeeData.fullName} (${employeeData.employeeId})`;
-      } catch(err) {
-        console.error("Error fetching Form data:", err);
-        faceStatusEl.textContent = "⚠ Failed to fetch Form data. Enter ID manually.";
-        employeeData = { fullName: "Unknown", employeeId: "" };
-      }
-    }
-    
-    // ----------------------
-    // Load authorized faces
-    async function loadAuthorizedFaces() {
-      labeledDescriptors = [];
-      const authorizedNames = ["John Doe", "Jane Smith", "Ikata Kenoye"];
-      for (const name of authorizedNames) {
-        try {
-          const img = await faceapi.fetchImage(`https://raw.githubusercontent.com/EMUGHEDI190625/face-models/main/images/${name}.jpg`);
-          const detection = await faceapi.detectSingleFace(img, new faceapi.TinyFaceDetectorOptions())
-            .withFaceLandmarks().withFaceDescriptor();
-          if (detection) {
-            labeledDescriptors.push(new faceapi.LabeledFaceDescriptors(name, [detection.descriptor]));
-          }
-        } catch(err) { console.error(err); }
-      }
-      faceMatcher = new faceapi.FaceMatcher(labeledDescriptors, 0.6);
-    }
-    
-    // ----------------------
-    // Send attendance to Google Sheet
-    async function logToSheet(recognized, imageDataURL, coords) {
-      const logData = {
-        employeeId: employeeData.employeeId,
-        fullName: employeeData.fullName,
-        recognized: recognized ? "Authorized" : "Unauthorized",
-        recognizeFaceImagelink: recognized ? imageDataURL : "",
-        notRecognizeFaceImagelink: !recognized ? imageDataURL : "",
-        latitude: coords.latitude,
-        longitude: coords.longitude
-      };
-    
-      try {
-        const response = await fetch("https://script.google.com/macros/s/AKfycbw1Sn8L1zcQh5GPiMISP5b21uFmYkVo5oz8LEt-XPq30ySl3QKJN8-mh5mIUmHDC_jT/exec", { 
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(logData),
-          mode: 'cors'
-        });
-        const result = await response.json();
-        if(result.success){
-          sheetStatusEl.style.color = "green";
-          sheetStatusEl.textContent = "✅ Attendance sent";
-        } else {
-          sheetStatusEl.style.color = "red";
-          sheetStatusEl.textContent = "❌ Error sending to sheet: " + result.error;
-        }
-      } catch(err) {
-        sheetStatusEl.style.color = "red";
-        sheetStatusEl.textContent = "❌ Error sending to sheet: " + err.message;
-      }
-    }
-    
-    // ----------------------
-    // Start camera & face detection
-    startBtn.onclick = async () => {
-      startBtn.disabled = true;
-      await loadAuthorizedFaces();
-    
-      try {
-        const stream = await navigator.mediaDevices.getUserMedia({ video: true });
-        video.srcObject = stream;
-        await video.play();
-        faceStatusEl.textContent = "🎥 Camera started — detecting faces...";
-    
-        setInterval(async () => {
-          const detections = await faceapi.detectAllFaces(video, new faceapi.TinyFaceDetectorOptions())
-            .withFaceLandmarks().withFaceDescriptors();
-          ctx.clearRect(0, 0, canvas.width, canvas.height);
-          faceapi.matchDimensions(canvas, { width: video.width, height: video.height });
-          const resized = faceapi.resizeResults(detections, { width: video.width, height: video.height });
-    
-          for (let i = 0; i < resized.length; i++) {
-            const result = faceMatcher.findBestMatch(resized[i].descriptor);
-            const recognized = result.label !== "unknown";
-            const statusText = recognized ? `Authorized: ${result.label}` : "Unauthorized";
-            const timeNow = new Date().toLocaleTimeString();
-            const box = resized[i].detection.box;
-            new faceapi.draw.DrawBox(box, { label: `${statusText} | ${timeNow}` }).draw(canvas);
-            faceStatusEl.textContent = `Face detected: ${statusText} | ${timeNow}`;
-    
-            const empId = employeeData.employeeId;
-            if (!recognizedToday[empId]) recognizedToday[empId] = {};
-            const today = new Date().toISOString().split("T")[0];
-            if (!recognizedToday[empId][today]) {
-              recognizedToday[empId][today] = true;
-    
-              // Capture image
-              const captureCanvas = document.createElement("canvas");
-              captureCanvas.width = video.videoWidth;
-              captureCanvas.height = video.videoHeight;
-              captureCanvas.getContext("2d").drawImage(video, 0, 0, captureCanvas.width, captureCanvas.height);
-              const imageDataURL = captureCanvas.toDataURL("image/jpeg");
-    
-              // Get location
-              if (navigator.geolocation) {
-                navigator.geolocation.getCurrentPosition((pos) => {
-                  logToSheet(recognized, imageDataURL, pos.coords);
-                }, () => {
-                  alert("Location permission denied.");
-                });
-              } else {
-                logToSheet(recognized, imageDataURL, {latitude:"", longitude:""});
-              }
-            }
-          }
-        }, 2000);
-    
-      } catch(err) {
-        faceStatusEl.style.color = "red";
-        faceStatusEl.textContent = "⚠️ Camera error: " + err.message;
-        startBtn.disabled = false;
-      }
+const faceStatusEl = document.getElementById("faceStatus");
+const sheetStatusEl = document.getElementById("sheetStatus");
+const startBtn = document.getElementById("startBtn");
+const video = document.getElementById("video");
+const canvas = document.getElementById("overlay");
+const ctx = canvas.getContext("2d");
+
+let labeledDescriptors = [];
+let faceMatcher;
+let recognizedToday = {}; // Track daily recognition per employee
+let employeeData = {};    // Store latest employee info
+
+// ----------------------
+// Load face-api models
+async function loadModels() {
+  faceStatusEl.textContent = "⏳ Loading models...";
+  await Promise.all([
+    faceapi.nets.tinyFaceDetector.loadFromUri('https://justadudewhohacks.github.io/face-api.js/models/'),
+    faceapi.nets.faceLandmark68Net.loadFromUri('https://justadudewhohacks.github.io/face-api.js/models/'),
+    faceapi.nets.faceRecognitionNet.loadFromUri('https://justadudewhohacks.github.io/face-api.js/models/')
+  ]);
+  faceStatusEl.textContent = "✅ Models loaded. Fetching latest Form data...";
+  await fetchFormData();
+  startBtn.disabled = false;
+}
+
+// ----------------------
+// Fetch latest Google Form submission
+async function fetchFormData() {
+  try {
+    const response = await fetch("https://script.google.com/macros/s/AKfycbw2sxCAjU0r1G42hpfZqDmMQFFF9hYxCkGh_Av5rVqRZDjYAWt3Li1KfVJQ5BsKsGQB8g/exec"); 
+    const data = await response.json();
+
+    if (!data || !data.length) throw new Error("No data returned");
+
+    const latest = data[data.length - 1];
+
+    // Normalize headers
+    const normalized = {};
+    Object.keys(latest).forEach(key => normalized[key.trim().toLowerCase()] = latest[key]);
+
+    // Map to employeeData
+    employeeData = {
+      fullName: normalized["full name"] || normalized["full_name"] || "Unknown",
+      employeeId: normalized["employees id"] || normalized["employeeid"] || "Unknown"
     };
-    
-    window.addEventListener("load", loadModels);
+
+    faceStatusEl.textContent = `✅ Loaded Form data for ${employeeData.fullName} (${employeeData.employeeId})`;
+
+  } catch(err) {
+    console.error("Error fetching Form data:", err);
+    faceStatusEl.textContent = "⚠ Failed to fetch Form data. Enter ID manually.";
+    employeeData = { fullName: "Unknown", employeeId: "" };
+  }
+}
+
+// ----------------------
+// Load authorized faces
+async function loadAuthorizedFaces() {
+  labeledDescriptors = [];
+  const authorizedNames = ["John Doe", "Jane Smith", "Ikata Kenoye"];
+  for (const name of authorizedNames) {
+    try {
+      const img = await faceapi.fetchImage(`https://raw.githubusercontent.com/EMUGHEDI190625/face-models/main/images/${name}.jpg`);
+      const detection = await faceapi.detectSingleFace(img, new faceapi.TinyFaceDetectorOptions())
+        .withFaceLandmarks().withFaceDescriptor();
+      if (detection) {
+        labeledDescriptors.push(new faceapi.LabeledFaceDescriptors(name, [detection.descriptor]));
+      }
+    } catch(err) { console.error(err); }
+  }
+  faceMatcher = new faceapi.FaceMatcher(labeledDescriptors, 0.6);
+}
+
+// ----------------------
+// Send attendance to Google Sheet
+async function logToSheet(recognized, imageDataURL, coords) {
+  const logData = {
+    employeeId: employeeData.employeeId,
+    fullName: employeeData.fullName,
+    recognized: recognized ? "Authorized" : "Unauthorized",
+    recognizeFaceImagelink: recognized ? imageDataURL : "",
+    notRecognizeFaceImagelink: !recognized ? imageDataURL : "",
+    latitude: coords.latitude,
+    longitude: coords.longitude
+  };
+
+  try {
+    const response = await fetch("https://script.google.com/macros/s/AKfycbzWkHQNU8NcYoCx5qmnV2O_vkkEKhtloIGpD9W-ZwR4_CfO8DPTcrGHkpNSRC7fsTJ4gQ/exec", { 
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(logData),
+      mode: 'cors'
+    });
+    const result = await response.json();
+    if(result.success){
+      sheetStatusEl.style.color = "green";
+      sheetStatusEl.textContent = "✅ Attendance sent";
+    } else {
+      sheetStatusEl.style.color = "red";
+      sheetStatusEl.textContent = "❌ Error sending to sheet: " + result.error;
+    }
+  } catch(err) {
+    sheetStatusEl.style.color = "red";
+    sheetStatusEl.textContent = "❌ Error sending to sheet: " + err.message;
+  }
+}
+
+// ----------------------
+// Start camera & face detection
+startBtn.onclick = async () => {
+  startBtn.disabled = true;
+  await loadAuthorizedFaces();
+
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+    video.srcObject = stream;
+    await video.play();
+    faceStatusEl.textContent = "🎥 Camera started — detecting faces...";
+
+    setInterval(async () => {
+      const detections = await faceapi.detectAllFaces(video, new faceapi.TinyFaceDetectorOptions())
+        .withFaceLandmarks().withFaceDescriptors();
+
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      faceapi.matchDimensions(canvas, { width: video.width, height: video.height });
+      const resized = faceapi.resizeResults(detections, { width: video.width, height: video.height });
+
+      for (let i = 0; i < resized.length; i++) {
+        const result = faceMatcher.findBestMatch(resized[i].descriptor);
+        const recognized = result.label !== "unknown";
+        const statusText = recognized ? `Authorized: ${result.label}` : "Unauthorized";
+        const timeNow = new Date().toLocaleTimeString();
+
+        const box = resized[i].detection.box;
+        new faceapi.draw.DrawBox(box, { label: `${statusText} | ${timeNow}` }).draw(canvas);
+        faceStatusEl.textContent = `Face detected: ${statusText} | ${timeNow}`;
+
+        const empId = employeeData.employeeId;
+        if (!recognizedToday[empId]) recognizedToday[empId] = {};
+        const today = new Date().toISOString().split("T")[0];
+
+        if (!recognizedToday[empId][today]) {
+          recognizedToday[empId][today] = true;
+
+          // Capture image
+          const captureCanvas = document.createElement("canvas");
+          captureCanvas.width = video.videoWidth;
+          captureCanvas.height = video.videoHeight;
+          captureCanvas.getContext("2d").drawImage(video, 0, 0, captureCanvas.width, captureCanvas.height);
+          const imageDataURL = captureCanvas.toDataURL("image/jpeg");
+
+          // Get location
+          if (navigator.geolocation) {
+            navigator.geolocation.getCurrentPosition(
+              (pos) => logToSheet(recognized, imageDataURL, pos.coords),
+              () => logToSheet(recognized, imageDataURL, {latitude:"", longitude:""})
+            );
+          } else {
+            logToSheet(recognized, imageDataURL, {latitude:"", longitude:""});
+          }
+        }
+      }
+    }, 2000);
+
+  } catch(err) {
+    faceStatusEl.style.color = "red";
+    faceStatusEl.textContent = "⚠️ Camera error: " + err.message;
+    startBtn.disabled = false;
+  }
+};
+
+window.addEventListener("load", loadModels);
 </script>
 </body>
 </html>
-
-
-
-
