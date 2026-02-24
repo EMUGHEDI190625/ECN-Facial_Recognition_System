@@ -124,7 +124,7 @@ async function logToSheet(recognized, imageDataURL, coords) {
   };
 
   try {
-    const response = await fetch("YOUR_APPS_SCRIPT_POST_URL", { // Apps Script POST
+    const response = await fetch("https://script.google.com/macros/s/AKfycbxU2amTYiO8LLGidPhCn5jmHuUeumuENbo_dtarrm9r1JwSFXmpqBT_0-mcRTtpzudaVQ/exec", { // Apps Script POST
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(logData),
@@ -211,3 +211,4 @@ window.addEventListener("load", loadModels);
 </script>
 </body>
 </html>
+
