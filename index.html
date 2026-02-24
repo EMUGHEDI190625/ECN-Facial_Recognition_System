@@ -83,9 +83,14 @@ async function fetchFormData() {
     if (!data || !data.length) throw new Error("No data returned");
 
     const latest = [...data].reverse().find(row =>
-      Object.values(row).some(v => v !== "" && v !== null)
-    );
-
+      Object.entries(row).some(([key,value])=>{
+      const k = key.toLowerCase();
+      return (
+        (k.includes("name") || k.includes("id")) &&
+       value && value.toString().trim() !== ""
+     );
+   })
+ );
     // ---------- SUPER NORMALIZER ----------
     const normalize = str =>
       String(str)
@@ -270,6 +275,7 @@ window.addEventListener("load", loadModels);
 </script>
 </body>
 </html>
+
 
 
 
