@@ -84,24 +84,39 @@ async function fetchFormData() {
 
     const latest = data[data.length - 1];
 
-    // -------- SMART KEY FINDER --------
+    // ---------- SUPER NORMALIZER ----------
+    const normalize = str =>
+      String(str)
+        .normalize("NFD")                  // remove unicode weirdness
+        .replace(/[\u0300-\u036f]/g, "")   // accents
+        .replace(/[^a-zA-Z0-9]/g, "")      // remove ALL special chars
+        .toLowerCase()
+        .trim();
+
+    // ---------- SMART FINDER ----------
     function findValue(obj, possibleNames){
-      for(const key of Object.keys(obj)){
-        const normalized = key.replace(/[\s_]/g,"").toLowerCase();
-        for(const name of possibleNames){
-          if(normalized === name.replace(/[\s_]/g,"").toLowerCase()){
-            return obj[key];
-          }
-        }
+      const normalizedKeys = {};
+
+      // normalize keys once
+      Object.keys(obj).forEach(key=>{
+        normalizedKeys[normalize(key)] = obj[key];
+      });
+
+      // search for match
+      for(const name of possibleNames){
+        const match = normalizedKeys[normalize(name)];
+        if(match !== undefined && match !== "") return match;
       }
       return null;
     }
 
-    // -------- GET VALUES SAFELY --------
+    // ---------- GET VALUES ----------
     const fullName = findValue(latest, [
       "full name",
       "fullname",
       "full_name",
+      "staff name",
+      "employee name",
       "name"
     ]);
 
@@ -109,6 +124,8 @@ async function fetchFormData() {
       "employees id",
       "employee id",
       "employeeid",
+      "staff id",
+      "staffid",
       "id"
     ]);
 
@@ -251,6 +268,7 @@ window.addEventListener("load", loadModels);
 </script>
 </body>
 </html>
+
 
 
 
