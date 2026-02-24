@@ -89,10 +89,10 @@ async function fetchFormData() {
     Object.keys(latest).forEach(key => normalized[key.trim().toLowerCase()] = latest[key]);
 
     // Map to employeeData
-    employeeData = {
-      fullName: normalized["full name"] || normalized["full_name"] || "Unknown",
-      employeeId: normalized["employees id"] || normalized["employeeid"] || "Unknown"
-    };
+      employeeData = {
+        fullName: normalized["full name"] || "Unknown",
+        employeeId: normalized["employees id"] || "Unknown"
+  };
 
     faceStatusEl.textContent = `✅ Loaded Form data for ${employeeData.fullName} (${employeeData.employeeId})`;
 
@@ -223,3 +223,4 @@ window.addEventListener("load", loadModels);
 </script>
 </body>
 </html>
+
