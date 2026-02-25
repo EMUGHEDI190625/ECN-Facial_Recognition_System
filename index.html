@@ -143,8 +143,9 @@ async function fetchFormData() {
     console.log("Latest row:", latest);
     console.log("Resolved:", employeeData);
 
+    const timeNow = new Date().toLocaleTimeString();
     faceStatusEl.textContent =
-      `✅ Loaded Form data for ${employeeData.fullName} (${employeeData.employeeId})`;
+      `✅ Loaded Form data for ${employeeData.fullName} (${employeeData.employeeId}) | ${timeNow)`;
 
   } catch(err) {
     console.error("Fetch error:", err);
@@ -274,6 +275,7 @@ window.addEventListener("load", loadModels);
 </script>
 </body>
 </html>
+
 
 
 
