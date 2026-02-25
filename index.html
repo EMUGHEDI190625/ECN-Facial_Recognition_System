@@ -118,7 +118,7 @@ async function fetchFormData() {
 
     // ---------- GET VALUES ----------
 
-    const timeNow = new Date().toLocaleTimeString();
+    // const timeNow = new Date().toLocaleTimeString();
     
     const fullName = findValue(latest, [
       "full name",
@@ -147,7 +147,7 @@ async function fetchFormData() {
     console.log("Resolved:", employeeData);
 
     faceStatusEl.textContent =
-      `✅ Loaded Form data for ${employeeData.fullName} (${employeeData.employeeId}) | ${timeNow)`;
+      `✅ Loaded Form data for ${employeeData.fullName} (${employeeData.employeeId})`;
 
   } catch(err) {
     console.error("Fetch error:", err);
@@ -277,6 +277,7 @@ window.addEventListener("load", loadModels);
 </script>
 </body>
 </html>
+
 
 
 
