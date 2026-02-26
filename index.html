@@ -81,15 +81,14 @@ async function fetchFormData() {
     const data = await response.json();
 
     if (!data || !data.length) throw new Error("No data returned");
-   const latest = [...data].reverse().find(row =>
-    Object.entries(row).some(([key,value])=>{
-      const k = key.toLowerCase();
-      return (
-        (k.includes("name") || k.includes("id")) &&
-        value && value.toString().trim() !== ""
-      );
-    })
-  );
+    const latest = [...data].reverse().find(row => {
+    const keys = Object.keys(row).map(k=>k.toLowerCase());
+
+    const nameKey = keys.find(k=>k.includes("name"));
+    const idKey = keys.find(k=>k.includes("id"));
+
+    return nameKey && idKey && row[nameKey] && row[idKey];
+    });
     // ---------- SUPER NORMALIZER ----------
     const normalize = str =>
       String(str)
@@ -275,6 +274,3 @@ window.addEventListener("load", loadModels);
 </script>
 </body>
 </html>
-
-
-
