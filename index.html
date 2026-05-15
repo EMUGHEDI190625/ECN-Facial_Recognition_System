@@ -158,7 +158,7 @@ async function fetchFormData() {
 // Load authorized faces
 async function loadAuthorizedFaces() {
   labeledDescriptors = [];
-  const authorizedNames = ["John Doe", "Jane Smith" "John Ada"];
+  const authorizedNames = ["John Doe", "Jane Smith", "John Ada"];
   for (const name of authorizedNames) {
     try {
       const img = await faceapi.fetchImage(`https://raw.githubusercontent.com/EMUGHEDI190625/face-models/main/images/${name}.jpg`);
