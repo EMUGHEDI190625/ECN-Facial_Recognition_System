@@ -226,41 +226,54 @@ startBtn.onclick = async () => {
       faceapi.matchDimensions(canvas, { width: video.width, height: video.height });
       const resized = faceapi.resizeResults(detections, { width: video.width, height: video.height });
 
-      for (let i = 0; i < resized.length; i++) {
-        const result = faceMatcher.findBestMatch(resized[i].descriptor);
-        const recognized = result.label !== "unknown";
-        const statusText = recognized ? `Authorized: ${result.label}` : "Unauthorized";
-        const timeNow = new Date().toLocaleTimeString();
+     for (let i = 0; i < resized.length; i++) {
+      const result = faceMatcher.findBestMatch(resized[i].descriptor);
 
-        const box = resized[i].detection.box;
-        new faceapi.draw.DrawBox(box, { label: `${statusText} | ${timeNow}` }).draw(canvas);
-        faceStatusEl.textContent = `Face detected: ${statusText} | ${timeNow}`;
+      const recognized = result.label !== "unknown";
+      const empId = result.label;
 
-        const empId = employeeData.employeeId;
-        if (!recognizedToday[empId]) recognizedToday[empId] = {};
-        const today = new Date().toISOString().split("T")[0];
+      const statusText = recognized ? `Authorized: ${empId}` : "Unauthorized";
+      const timeNow = new Date().toLocaleTimeString();
 
-        if (!recognizedToday[empId][today]) {
-          recognizedToday[empId][today] = true;
+      const box = resized[i].detection.box;
+      new faceapi.draw.DrawBox(box, {
+        label: `${statusText} | ${timeNow}`
+      }).draw(canvas);
 
-          // Capture image
-          const captureCanvas = document.createElement("canvas");
-          captureCanvas.width = video.videoWidth;
-          captureCanvas.height = video.videoHeight;
-          captureCanvas.getContext("2d").drawImage(video, 0, 0, captureCanvas.width, captureCanvas.height);
-          const imageDataURL = captureCanvas.toDataURL("image/jpeg");
+      faceStatusEl.textContent = `Face detected: ${statusText} | ${timeNow}`;
 
-          // Get location
-          if (navigator.geolocation) {
-            navigator.geolocation.getCurrentPosition(
-              (pos) => logToSheet(recognized, imageDataURL, pos.coords),
-              () => logToSheet(recognized, imageDataURL, {latitude:"", longitude:""})
-            );
-          } else {
-            logToSheet(recognized, imageDataURL, {latitude:"", longitude:""});
-          }
+      // 🔥 FIX: use face ID instead of employeeData
+      if (!recognizedToday[empId]) {
+        recognizedToday[empId] = {};
+      }
+
+      const today = new Date().toISOString().split("T")[0];
+
+      if (!recognizedToday[empId][today]) {
+        recognizedToday[empId][today] = true;
+
+        // Capture image
+        const captureCanvas = document.createElement("canvas");
+        captureCanvas.width = video.videoWidth;
+        captureCanvas.height = video.videoHeight;
+        captureCanvas.getContext("2d")
+          .drawImage(video, 0, 0, captureCanvas.width, captureCanvas.height);
+
+        const imageDataURL = captureCanvas.toDataURL("image/jpeg");
+
+        // Get location
+        const send = (coords) => logToSheet(recognized, imageDataURL, coords);
+
+        if (navigator.geolocation) {
+          navigator.geolocation.getCurrentPosition(
+            (pos) => send(pos.coords),
+            () => send({ latitude: "", longitude: "" })
+          );
+        } else {
+          send({ latitude: "", longitude: "" });
         }
       }
+    }
     }, 2000);
 
   } catch(err) {
@@ -271,7 +284,14 @@ startBtn.onclick = async () => {
 };
 
 window.addEventListener("load", loadModels);
+const url = "https://script.google.com/macros/s/AKfycbw69SxzIi9b-nnJUGHJSBnR4jSpTrGvxbxbzze10U4EM_6jUv5T4v8okKWN8uTLUY_w8A/exec?employeeId=" 
+  + encodeURIComponent(employeeId);
+
+const response = await fetch(url);
+const data = await response.json();
+
+console.log(data);
+  
 </script>
 </body>
 </html>
-
