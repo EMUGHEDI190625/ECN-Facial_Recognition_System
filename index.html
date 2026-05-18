@@ -78,80 +78,47 @@ async function loadModels() {
 async function fetchFormData() {
   try {
     const response = await fetch("https://script.google.com/macros/s/AKfycbw69SxzIi9b-nnJUGHJSBnR4jSpTrGvxbxbzze10U4EM_6jUv5T4v8okKWN8uTLUY_w8A/exec");
+
     const data = await response.json();
 
-    if (!data || !data.length) throw new Error("No data returned");
-    const latest = [...data].reverse().find(row => {
-    const keys = Object.keys(row).map(k=>k.toLowerCase());
+    console.log("RAW DATA:", data);
 
-    const nameKey = keys.find(k=>k.includes("name"));
-    const idKey = keys.find(k=>k.includes("id"));
-
-    return nameKey && idKey && row[nameKey] && row[idKey];
-    });
-    // ---------- SUPER NORMALIZER ----------
-    const normalize = str =>
-      String(str)
-        .normalize("NFD")                  // remove unicode weirdness
-        .replace(/[\u0300-\u036f]/g, "")   // accents
-        .replace(/[^a-zA-Z0-9]/g, "")      // remove ALL special chars
-        .toLowerCase()
-        .trim();
-
-    // ---------- SMART FINDER ----------
-    function findValue(obj, possibleNames){
-      const normalizedKeys = {};
-
-      // normalize keys once
-      Object.keys(obj).forEach(key=>{
-        normalizedKeys[normalize(key)] = obj[key];
-      });
-
-      // search for match
-      for(const name of possibleNames){
-        const match = normalizedKeys[normalize(name)];
-        if(match !== undefined && match !== "") return match;
-      }
-      return null;
+    // ❗ STOP HERE IF ERROR
+    if (data.error) {
+      throw new Error(data.error);
     }
 
-    // ---------- GET VALUES ----------
-    
-    const fullName = findValue(latest, [
-      "full name",
-      "fullname",
-      "full_name",
-      "staff name",
-      "employee name",
-      "name"
-    ]);
+    // ❗ MAKE SURE IT IS ARRAY
+    if (!Array.isArray(data)) {
+      throw new Error("Expected array but got object");
+    }
 
-    const employeeId = findValue(latest, [
-      "employees id",
-      "employee id",
-      "employeeid",
-      "staff id",
-      "staffid",
-      "id"
-    ]);
+    const latest = [...data].reverse().find(row => {
+      const keys = Object.keys(row).map(k => k.toLowerCase());
+      const nameKey = keys.find(k => k.includes("name"));
+      const idKey = keys.find(k => k.includes("id"));
+      return nameKey && idKey && row[nameKey] && row[idKey];
+    });
 
     employeeData = {
-      fullName: fullName || "Unknown",
-      employeeId: employeeId || "Unknown"
+      fullName: latest?.["Full Name"] || "Unknown",
+      employeeId: latest?.["Employee ID"] || "Unknown"
     };
-
-    console.log("Latest row:", latest);
-    console.log("Resolved:", employeeData);
 
     faceStatusEl.textContent =
       `✅ Loaded Form data for ${employeeData.fullName} (${employeeData.employeeId})`;
 
-  } catch(err) {
+  } catch (err) {
     console.error("Fetch error:", err);
+
     faceStatusEl.textContent =
-      "⚠ Failed to fetch Form data. Enter ID manually.";
-    employeeData = { fullName:"Unknown", employeeId:"" };
+      "⚠ Failed to fetch Form data: " + err.message;
+
+    employeeData = { fullName: "Unknown", employeeId: "" };
   }
+
+  // 🔥 ALWAYS ENABLE BUTTON (IMPORTANT)
+  startBtn.disabled = false;
 }
 
 // ----------------------
