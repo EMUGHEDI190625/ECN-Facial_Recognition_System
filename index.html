@@ -229,51 +229,57 @@ startBtn.onclick = async () => {
      for (let i = 0; i < resized.length; i++) {
       const result = faceMatcher.findBestMatch(resized[i].descriptor);
 
-      const recognized = result.label !== "unknown";
       const empId = result.label;
-
-      const statusText = recognized ? `Authorized: ${empId}` : "Unauthorized";
-      const timeNow = new Date().toLocaleTimeString();
-
-      const box = resized[i].detection.box;
-      new faceapi.draw.DrawBox(box, {
-        label: `${statusText} | ${timeNow}`
-      }).draw(canvas);
-
-      faceStatusEl.textContent = `Face detected: ${statusText} | ${timeNow}`;
-
-      // 🔥 FIX: use face ID instead of employeeData
-      if (!recognizedToday[empId]) {
+      const recognized = empId !== "unknown";
+      
+      if (recognized && !recognizedToday[empId]) {
         recognizedToday[empId] = {};
-      }
-
-      const today = new Date().toISOString().split("T")[0];
-
-      if (!recognizedToday[empId][today]) {
-        recognizedToday[empId][today] = true;
-
-        // Capture image
-        const captureCanvas = document.createElement("canvas");
-        captureCanvas.width = video.videoWidth;
-        captureCanvas.height = video.videoHeight;
-        captureCanvas.getContext("2d")
-          .drawImage(video, 0, 0, captureCanvas.width, captureCanvas.height);
-
-        const imageDataURL = captureCanvas.toDataURL("image/jpeg");
-
-        // Get location
-        const send = (coords) => logToSheet(recognized, imageDataURL, coords);
-
-        if (navigator.geolocation) {
-          navigator.geolocation.getCurrentPosition(
-            (pos) => send(pos.coords),
-            () => send({ latitude: "", longitude: "" })
-          );
-        } else {
-          send({ latitude: "", longitude: "" });
+      
+        const today = new Date().toISOString().split("T")[0];
+      
+        if (!recognizedToday[empId][today]) {
+          recognizedToday[empId][today] = true;
+      
+          // 🔥 BUILD URL HERE (INSIDE LOOP)
+          const url =
+            "https://script.google.com/macros/s/AKfycbw69SxzIi9b-nnJUGHJSBnR4jSpTrGvxbxbzze10U4EM_6jUv5T4v8okKWN8uTLUY_w8A/exec?employeeId="
+            + encodeURIComponent(empId);
+      
+          try {
+            const response = await fetch(url);
+            const data = await response.json();
+      
+            console.log("Employee Row:", data);
+      
+            // optional: store it
+            employeeData = data;
+      
+          } catch (err) {
+            console.error("Fetch error:", err);
+          }
+      
+          // Capture image
+          const captureCanvas = document.createElement("canvas");
+          captureCanvas.width = video.videoWidth;
+          captureCanvas.height = video.videoHeight;
+          captureCanvas.getContext("2d")
+            .drawImage(video, 0, 0, captureCanvas.width, captureCanvas.height);
+      
+          const imageDataURL = captureCanvas.toDataURL("image/jpeg");
+      
+          const send = (coords) =>
+            logToSheet(recognized, imageDataURL, coords);
+      
+          if (navigator.geolocation) {
+            navigator.geolocation.getCurrentPosition(
+              (pos) => send(pos.coords),
+              () => send({ latitude: "", longitude: "" })
+            );
+          } else {
+            send({ latitude: "", longitude: "" });
+          }
         }
-      }
-    }
+      }    }
     }, 2000);
 
   } catch(err) {
@@ -284,11 +290,6 @@ startBtn.onclick = async () => {
 };
 
 window.addEventListener("load", loadModels);
-const url = "https://script.google.com/macros/s/AKfycbw69SxzIi9b-nnJUGHJSBnR4jSpTrGvxbxbzze10U4EM_6jUv5T4v8okKWN8uTLUY_w8A/exec?employeeId=" 
-  + encodeURIComponent(employeeId);
-
-const response = await fetch(url);
-const data = await response.json();
 
 console.log(data);
   
