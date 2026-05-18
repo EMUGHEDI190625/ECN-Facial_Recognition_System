@@ -4,12 +4,11 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>ECN Face Recognition System</title>
 
-  <!-- Load face-api.js -->
   <script src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js"></script>
 
   <style>
     body {
-      font-family: Arial, sans-serif;
+      font-family: Arial;
       text-align: center;
       padding: 10px;
       background: #f4f4f4;
@@ -20,249 +19,182 @@
       margin-top: 10px;
     }
     button {
-      margin: 5px;
       padding: 8px;
       font-size: 16px;
-    }
-    #faceStatus {
-      margin-top: 10px;
-      font-weight: bold;
-      color: green;
-    }
-    #sheetStatus {
-      margin-top: 5px;
-      font-weight: bold;
+      margin: 5px;
     }
   </style>
 </head>
+
 <body>
-  <h2>ECN Face Recognition System</h2>
-  <img src="https://raw.githubusercontent.com/EMUGHEDI190625/face-models/main/images/ECN_logo.jpg" alt="ECN Logo"><br>
 
-  <button id="startBtn" disabled>Start Camera</button>
-  <p id="faceStatus">Loading models...</p>
-  <p id="sheetStatus"></p>
+<h2>ECN Face Recognition System</h2>
 
-  <video id="video" width="320" height="240" autoplay muted></video>
-  <canvas id="overlay" width="320" height="240"></canvas>
+<button id="startBtn" disabled>Start Camera</button>
+<p id="faceStatus">Loading models...</p>
+
+<video id="video" width="320" height="240" autoplay muted></video>
+<canvas id="overlay" width="320" height="240"></canvas>
 
 <script>
+
 const faceStatusEl = document.getElementById("faceStatus");
-const sheetStatusEl = document.getElementById("sheetStatus");
 const startBtn = document.getElementById("startBtn");
 const video = document.getElementById("video");
 const canvas = document.getElementById("overlay");
 const ctx = canvas.getContext("2d");
 
-let labeledDescriptors = [];
 let faceMatcher;
-let recognizedToday = {}; // Track daily recognition per employee
-let employeeData = {};    // Store latest employee info
+let labeledDescriptors = [];
+let recognizedToday = {};
+let employeeData = {};
 
-// ----------------------
-// Load face-api models
+// ===================== LOAD MODELS =====================
 async function loadModels() {
-  faceStatusEl.textContent = "⏳ Loading models...";
-  await Promise.all([
-    faceapi.nets.tinyFaceDetector.loadFromUri('https://justadudewhohacks.github.io/face-api.js/models/'),
-    faceapi.nets.faceLandmark68Net.loadFromUri('https://justadudewhohacks.github.io/face-api.js/models/'),
-    faceapi.nets.faceRecognitionNet.loadFromUri('https://justadudewhohacks.github.io/face-api.js/models/')
-  ]);
-  faceStatusEl.textContent = "✅ Models loaded. Fetching latest Form data...";
-  await fetchFormData();
-  startBtn.disabled = false;
-}
-
-// ----------------------
-// Fetch latest Google Form submission
-async function fetchFormData() {
   try {
-    const response = await fetch(
-      "https://script.google.com/macros/s/AKfycbw69SxzIi9b-nnJUGHJSBnR4jSpTrGvxbxbzze10U4EM_6jUv5T4v8okKWN8uTLUY_w8A/exec"
-    );
+    faceStatusEl.textContent = "Loading models...";
 
-    const data = await response.json();
+    await Promise.all([
+      faceapi.nets.tinyFaceDetector.loadFromUri('https://justadudewhohacks.github.io/face-api.js/models/'),
+      faceapi.nets.faceLandmark68Net.loadFromUri('https://justadudewhohacks.github.io/face-api.js/models/'),
+      faceapi.nets.faceRecognitionNet.loadFromUri('https://justadudewhohacks.github.io/face-api.js/models/')
+    ]);
 
-    console.log("RAW DATA:", data);
+    await loadAuthorizedFaces();
+    await fetchLatestEmployee();
 
-    if (data.error) throw new Error(data.error);
-    if (!Array.isArray(data)) throw new Error("Expected array");
-
-    const normalize = str =>
-      String(str)
-        .toLowerCase()
-        .replace(/[^a-z0-9]/gi, "")
-        .trim();
-
-    const latest = [...data].reverse().find(row => {
-      const keys = Object.keys(row);
-
-      const nameKey = keys.find(k =>
-        normalize(k).includes("name")
-      );
-
-      const idKey = keys.find(k =>
-        normalize(k).includes("id")
-      );
-
-      return nameKey && idKey;
-    });
-
-    if (!latest) throw new Error("No valid row found");
-
-    const findValue = (obj, keywords) => {
-      const keys = Object.keys(obj);
-      for (const k of keys) {
-        const nk = k.toLowerCase().replace(/[^a-z0-9]/g, "");
-        if (keywords.some(word => nk.includes(word))) {
-          return obj[k];
-        }
-      }
-      return null;
-    };
-
-    employeeData = {
-      fullName: findValue(latest, ["name"]) || "Unknown",
-      employeeId: findValue(latest, ["id"]) || "Unknown"
-    };
-
-    console.log("Resolved Employee:", employeeData);
-
-    faceStatusEl.textContent =
-      `✅ Loaded Form data for ${employeeData.fullName} (${employeeData.employeeId})`;
+    faceStatusEl.textContent = "Ready ✔";
+    startBtn.disabled = false;
 
   } catch (err) {
     console.error(err);
-
-    faceStatusEl.textContent =
-      "⚠ Failed: " + err.message;
-
-    employeeData = { fullName: "Unknown", employeeId: "" };
+    faceStatusEl.textContent = "Model load failed";
+    startBtn.disabled = false;
   }
-
-  startBtn.disabled = false;
 }
 
-// ----------------------
-// Load authorized faces
+// ===================== FETCH SHEET DATA =====================
+async function fetchLatestEmployee() {
+  try {
+    const res = await fetch("YOUR_WEBAPP_URL_HERE");
+    const data = await res.json();
+
+    if (data.error) throw new Error(data.error);
+    if (!Array.isArray(data)) throw new Error("Invalid response format");
+
+    const latest = data.reverse()[0];
+
+    employeeData = {
+      fullName: latest?.["Full Name"] || latest?.["Name"] || "Unknown",
+      employeeId: latest?.["Employee ID"] || latest?.["EmployeeId"] || "Unknown"
+    };
+
+    console.log("Employee Loaded:", employeeData);
+
+  } catch (err) {
+    console.error("Fetch error:", err);
+    employeeData = { fullName: "Unknown", employeeId: "" };
+  }
+}
+
+// ===================== LOAD FACES =====================
 async function loadAuthorizedFaces() {
   labeledDescriptors = [];
-  const authorizedNames = ["EMP001", "EMP002", "ECN21"];
-  for (const name of authorizedNames) {
+
+  const users = ["EMP001", "EMP002", "ECN21"];
+
+  for (const id of users) {
     try {
-      const img = await faceapi.fetchImage(`https://raw.githubusercontent.com/EMUGHEDI190625/face-models/main/images/${name}.jpg`);
-      const detection = await faceapi.detectSingleFace(img, new faceapi.TinyFaceDetectorOptions())
-        .withFaceLandmarks().withFaceDescriptor();
+      const img = await faceapi.fetchImage(
+        `https://raw.githubusercontent.com/EMUGHEDI190625/face-models/main/images/${id}.jpg`
+      );
+
+      const detection = await faceapi
+        .detectSingleFace(img, new faceapi.TinyFaceDetectorOptions())
+        .withFaceLandmarks()
+        .withFaceDescriptor();
+
       if (detection) {
-        labeledDescriptors.push(new faceapi.LabeledFaceDescriptors(name, [detection.descriptor]));
+        labeledDescriptors.push(
+          new faceapi.LabeledFaceDescriptors(id, [detection.descriptor])
+        );
       }
-    } catch(err) { console.error(err); }
+
+    } catch (err) {
+      console.error("Face load error:", err);
+    }
   }
+
   faceMatcher = new faceapi.FaceMatcher(labeledDescriptors, 0.6);
 }
 
-// ----------------------
-// Send attendance to Google Sheet
-async function logToSheet(recognized, imageDataURL, coords) {
-  const logData = {
-    employeeId: employeeData.employeeId,
-    fullName: employeeData.fullName,
-    recognized: recognized ? "Authorized" : "Unauthorized",
-    recognizeFaceImagelink: recognized ? imageDataURL : "",
-    notRecognizeFaceImagelink: !recognized ? imageDataURL : "",
-    latitude: coords.latitude,
-    longitude: coords.longitude
-  };
-
-  try {
-    const response = await fetch("https://script.google.com/macros/s/AKfycbyxUNToilDppXV15smR0ogBtUBFGI8B5HtM1I1yz59gnrQGCpU-KTkiwDErEUTES9oQXQ/exec", { 
-      method: "POST",
-      
-      body: JSON.stringify(logData),
-      
-    });
-    const result = await response.json();
-    if(result.success){
-      sheetStatusEl.style.color = "green";
-      sheetStatusEl.textContent = "✅ Attendance sent";
-    } else {
-      sheetStatusEl.style.color = "red";
-      sheetStatusEl.textContent = "❌ Error sending to sheet: " + result.error;
-    }
-  } catch(err) {
-    sheetStatusEl.style.color = "red";
-    sheetStatusEl.textContent = "❌ Error sending to sheet: " + err.message;
-  }
-}
-
-// ----------------------
-// Start camera & face detection
+// ===================== START CAMERA =====================
 startBtn.onclick = async () => {
-  startBtn.disabled = true;
-  await loadAuthorizedFaces();
-
   try {
     const stream = await navigator.mediaDevices.getUserMedia({ video: true });
     video.srcObject = stream;
     await video.play();
-    faceStatusEl.textContent = "🎥 Camera started — detecting faces...";
+
+    faceStatusEl.textContent = "Camera running...";
 
     setInterval(async () => {
-      const detections = await faceapi.detectAllFaces(video, new faceapi.TinyFaceDetectorOptions())
-        .withFaceLandmarks().withFaceDescriptors();
+
+      const detections = await faceapi
+        .detectAllFaces(video, new faceapi.TinyFaceDetectorOptions())
+        .withFaceLandmarks()
+        .withFaceDescriptors();
 
       ctx.clearRect(0, 0, canvas.width, canvas.height);
-      faceapi.matchDimensions(canvas, { width: video.width, height: video.height });
-      const resized = faceapi.resizeResults(detections, { width: video.width, height: video.height });
 
-   for (let i = 0; i < resized.length; i++) {
-        const result = faceMatcher.findBestMatch(resized[i].descriptor);
-      
-        const empId = result.label;
-        const distance = result.distance;
-      
-        if (!empId || empId === "unknown" || distance > 0.55) {
-          console.log("Rejected face:", empId, distance);
-          continue;
-        }
-      
-        const cleanId = empId.trim();
-      
-        if (recognizedToday[cleanId]) continue;
-        recognizedToday[cleanId] = true;
-      
+      const resized = faceapi.resizeResults(detections, {
+        width: video.width,
+        height: video.height
+      });
+
+      for (const det of resized) {
+
+        const match = faceMatcher.findBestMatch(det.descriptor);
+
+        const empId = match.label;
+        const distance = match.distance;
+
+        // 🔥 FILTER INVALID FACE
+        if (empId === "unknown" || distance > 0.55) continue;
+
+        if (recognizedToday[empId]) continue;
+        recognizedToday[empId] = true;
+
+        console.log("Recognized:", empId);
+
         const url =
-          "https://script.google.com/macros/s/AKfycbw69SxzIi9b-nnJUGHJSBnR4jSpTrGvxbxbzze10U4EM_6jUv5T4v8okKWN8uTLUY_w8A/exec?employeeId="
-          + encodeURIComponent(cleanId);
-      
-        console.log("Calling:", url);
-      
+          "YOUR_WEBAPP_URL_HERE?employeeId=" +
+          encodeURIComponent(empId);
+
         try {
-          const response = await fetch(url);
-          const data = await response.json();
-      
-          console.log("Employee Row:", data);
-      
-          employeeData = data;
+          const res = await fetch(url);
+          const data = await res.json();
+          console.log("Sheet result:", data);
+
         } catch (err) {
-          console.error(err);
+          console.error("Sheet fetch error:", err);
         }
-      
+
         break;
       }
+
     }, 2000);
 
-  } catch(err) {
-    faceStatusEl.style.color = "red";
-    faceStatusEl.textContent = "⚠️ Camera error: " + err.message;
+  } catch (err) {
+    console.error(err);
+    faceStatusEl.textContent = "Camera error";
     startBtn.disabled = false;
   }
 };
 
+// ===================== INIT =====================
 window.addEventListener("load", loadModels);
 
-console.log(data);
-  
 </script>
+
 </body>
 </html>
