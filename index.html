@@ -231,6 +231,11 @@ startBtn.onclick = async () => {
 
       const empId = result.label;
       const recognized = empId !== "unknown";
+       
+       if (!empId || empId === "unknown") {
+          console.log("Skipping API call - invalid ID");
+           continue;
+        }
       
       if (recognized && !recognizedToday[empId]) {
         recognizedToday[empId] = {};
