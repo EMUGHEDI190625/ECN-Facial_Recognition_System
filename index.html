@@ -226,65 +226,42 @@ startBtn.onclick = async () => {
       faceapi.matchDimensions(canvas, { width: video.width, height: video.height });
       const resized = faceapi.resizeResults(detections, { width: video.width, height: video.height });
 
-     for (let i = 0; i < resized.length; i++) {
-      const result = faceMatcher.findBestMatch(resized[i].descriptor);
-
-      const empId = result.label;
-      const recognized = empId !== "unknown";
-       
-       if (!empId || empId === "unknown") {
-          console.log("Skipping API call - invalid ID");
-           continue;
+    for (let i = 0; i < resized.length; i++) {
+        const result = faceMatcher.findBestMatch(resized[i].descriptor);
+      
+        const empId = result.label;
+      
+        // 1. VALIDATE FIRST
+        if (!empId || empId === "unknown" || empId === "Unknown") {
+          continue;
         }
       
-      if (recognized && !recognizedToday[empId]) {
-        recognizedToday[empId] = {};
+        // 2. CLEAN VALUE
+        const cleanId = empId.trim();
       
-        const today = new Date().toISOString().split("T")[0];
+        // 3. AVOID DUPLICATES
+        if (recognizedToday[cleanId]) continue;
       
-        if (!recognizedToday[empId][today]) {
-          recognizedToday[empId][today] = true;
+        recognizedToday[cleanId] = true;
       
-          // 🔥 BUILD URL HERE (INSIDE LOOP)
-          const url =
-            "https://script.google.com/macros/s/AKfycbw69SxzIi9b-nnJUGHJSBnR4jSpTrGvxbxbzze10U4EM_6jUv5T4v8okKWN8uTLUY_w8A/exec?employeeId="
-            + encodeURIComponent(empId);
+        const url =
+          "https://script.google.com/macros/s/AKfycbw69SxzIi9b-nnJUGHJSBnR4jSpTrGvxbxbzze10U4EM_6jUv5T4v8okKWN8uTLUY_w8A/exec?employeeId="
+          + encodeURIComponent(cleanId);
       
-          try {
-            const response = await fetch(url);
-            const data = await response.json();
+        try {
+          const response = await fetch(url);
+          const data = await response.json();
       
-            console.log("Employee Row:", data);
+          console.log("Employee Row:", data);
       
-            // optional: store it
-            employeeData = data;
+          employeeData = data;
       
-          } catch (err) {
-            console.error("Fetch error:", err);
-          }
-      
-          // Capture image
-          const captureCanvas = document.createElement("canvas");
-          captureCanvas.width = video.videoWidth;
-          captureCanvas.height = video.videoHeight;
-          captureCanvas.getContext("2d")
-            .drawImage(video, 0, 0, captureCanvas.width, captureCanvas.height);
-      
-          const imageDataURL = captureCanvas.toDataURL("image/jpeg");
-      
-          const send = (coords) =>
-            logToSheet(recognized, imageDataURL, coords);
-      
-          if (navigator.geolocation) {
-            navigator.geolocation.getCurrentPosition(
-              (pos) => send(pos.coords),
-              () => send({ latitude: "", longitude: "" })
-            );
-          } else {
-            send({ latitude: "", longitude: "" });
-          }
+        } catch (err) {
+          console.error("Fetch error:", err);
         }
-      }    }
+      
+        break; // IMPORTANT: stop multiple face calls
+      }
     }, 2000);
 
   } catch(err) {
