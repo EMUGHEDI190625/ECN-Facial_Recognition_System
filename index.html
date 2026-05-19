@@ -162,34 +162,19 @@ async function fetchFormData() {
 // Load authorized faces
 async function loadAuthorizedFaces() {
   labeledDescriptors = [];
-
-  if (!employeeId) {
-    faceStatusEl.textContent = "❌ No Employee ID found in QR link";
-    return;
+  // const authorizedNames = ["John Doe", "Jane Smith", "Ikata Kenoye"];
+  const authorizedNames = [employeeId];
+  for (const name of authorizedNames) {
+    try {
+      const img = await faceapi.fetchImage(`https://raw.githubusercontent.com/EMUGHEDI190625/face-models/main/images/${name}.jpg`);
+      const detection = await faceapi.detectSingleFace(img, new faceapi.TinyFaceDetectorOptions())
+        .withFaceLandmarks().withFaceDescriptor();
+      if (detection) {
+        labeledDescriptors.push(new faceapi.LabeledFaceDescriptors(name, [detection.descriptor]));
+      }
+    } catch(err) { console.error(err); }
   }
-
-  try {
-    const img = await faceapi.fetchImage(
-      `https://raw.githubusercontent.com/EMUGHEDI190625/face-models/main/images/${employeeId}.jpg`
-    );
-
-    const detection = await faceapi
-      .detectSingleFace(img, new faceapi.TinyFaceDetectorOptions())
-      .withFaceLandmarks()
-      .withFaceDescriptor();
-
-    if (detection) {
-      labeledDescriptors.push(
-        new faceapi.LabeledFaceDescriptors(employeeId, [detection.descriptor])
-      );
-    }
-
-    faceMatcher = new faceapi.FaceMatcher(labeledDescriptors, 0.6);
-
-  } catch (err) {
-    console.error(err);
-    faceStatusEl.textContent = "❌ Face model not found for employee";
-  }
+  faceMatcher = new faceapi.FaceMatcher(labeledDescriptors, 0.6);
 }
 
 // ----------------------
@@ -248,7 +233,7 @@ startBtn.onclick = async () => {
 
       for (let i = 0; i < resized.length; i++) {
         const result = faceMatcher.findBestMatch(resized[i].descriptor);
-        const recognized = result.label !== "unknown";
+        const recognized = result.label === employeeId;
         const statusText = recognized ? `Authorized: ${result.label}` : "Unauthorized";
         const timeNow = new Date().toLocaleTimeString();
 
