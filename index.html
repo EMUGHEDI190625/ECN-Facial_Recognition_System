@@ -162,19 +162,34 @@ async function fetchFormData() {
 // Load authorized faces
 async function loadAuthorizedFaces() {
   labeledDescriptors = [];
-  // const authorizedNames = ["John Doe", "Jane Smith", "Ikata Kenoye"];
-  const authorizedNames = [employeeId];
-  for (const name of authorizedNames) {
-    try {
-      const img = await faceapi.fetchImage(`https://raw.githubusercontent.com/EMUGHEDI190625/face-models/main/images/${name}.jpg`);
-      const detection = await faceapi.detectSingleFace(img, new faceapi.TinyFaceDetectorOptions())
-        .withFaceLandmarks().withFaceDescriptor();
-      if (detection) {
-        labeledDescriptors.push(new faceapi.LabeledFaceDescriptors(name, [detection.descriptor]));
-      }
-    } catch(err) { console.error(err); }
+
+  if (!employeeId) {
+    faceStatusEl.textContent = "❌ No Employee ID found in QR link";
+    return;
   }
-  faceMatcher = new faceapi.FaceMatcher(labeledDescriptors, 0.6);
+
+  try {
+    const img = await faceapi.fetchImage(
+      `https://raw.githubusercontent.com/EMUGHEDI190625/face-models/main/images/${employeeId}.jpg`
+    );
+
+    const detection = await faceapi
+      .detectSingleFace(img, new faceapi.TinyFaceDetectorOptions())
+      .withFaceLandmarks()
+      .withFaceDescriptor();
+
+    if (detection) {
+      labeledDescriptors.push(
+        new faceapi.LabeledFaceDescriptors(employeeId, [detection.descriptor])
+      );
+    }
+
+    faceMatcher = new faceapi.FaceMatcher(labeledDescriptors, 0.6);
+
+  } catch (err) {
+    console.error(err);
+    faceStatusEl.textContent = "❌ Face model not found for employee";
+  }
 }
 
 // ----------------------
