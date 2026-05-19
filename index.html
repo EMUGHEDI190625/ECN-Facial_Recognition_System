@@ -47,6 +47,10 @@
   <canvas id="overlay" width="320" height="240"></canvas>
 
 <script>
+const urlParams = new URLSearchParams(window.location.search);
+const employeeId = urlParams.get("employeeId");
+const fullName = urlParams.get("fullName");
+  
 const faceStatusEl = document.getElementById("faceStatus");
 const sheetStatusEl = document.getElementById("sheetStatus");
 const startBtn = document.getElementById("startBtn");
@@ -158,7 +162,8 @@ async function fetchFormData() {
 // Load authorized faces
 async function loadAuthorizedFaces() {
   labeledDescriptors = [];
-  const authorizedNames = ["John Doe", "Jane Smith", "Ikata Kenoye"];
+  // const authorizedNames = ["John Doe", "Jane Smith", "Ikata Kenoye"];
+  const authorizedNames = [employeeId];
   for (const name of authorizedNames) {
     try {
       const img = await faceapi.fetchImage(`https://raw.githubusercontent.com/EMUGHEDI190625/face-models/main/images/${name}.jpg`);
