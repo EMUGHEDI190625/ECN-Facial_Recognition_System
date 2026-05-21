@@ -1,4 +1,4 @@
-Getting 5/21/2026 15:54:49		Unknown	Authorized																						 using <!DOCTYPE html> 
+<!DOCTYPE html> 
 <html>
 <head>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -338,35 +338,4 @@ startBtn.onclick = async () => {
 window.addEventListener("load", loadModels);
 </script>
 </body>
-</html> and function doPost(e) {
-  try {
-    const sheet = SpreadsheetApp.openById("1sPPmGuViB7HovIp8c9At4SfOxVdDibcVJ2IupgQpmOw")
-      .getSheetByName("Test");
-
-    const data = JSON.parse(e.postData.contents);
-
-    sheet.appendRow([
-      new Date(),
-      data.employeeId,
-      data.fullName,
-      data.recognized,
-      data.latitude,
-      data.longitude,
-      data.faceImage   // 👈 IMAGE STORED HERE
-    ]);
-
-    return ContentService
-      .createTextOutput(JSON.stringify({
-        success: true
-      }))
-      .setMimeType(ContentService.MimeType.JSON);
-
-  } catch (err) {
-    return ContentService
-      .createTextOutput(JSON.stringify({
-        success: false,
-        error: err.message
-      }))
-      .setMimeType(ContentService.MimeType.JSON);
-  }
-}
+</html>
