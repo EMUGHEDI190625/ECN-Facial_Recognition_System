@@ -257,26 +257,37 @@ startBtn.onclick = async () => {
           // Get location
           if (navigator.geolocation) {
             navigator.geolocation.getCurrentPosition(
-              (pos) => employeeData = {
-              fullName: recognizedName,
-              employeeId: recognizedName
-            };
-
-            logToSheet(recognized, imageDataURL, pos.coords);
-              () => {
+            (pos) => {
+          
               employeeData = {
                 fullName: recognizedName,
                 employeeId: recognizedName
               };
-
+          
               logToSheet(
                 recognized,
                 imageDataURL,
-                { latitude:"", longitude:"" }
+                pos.coords
+              );
+            },
+          
+            () => {
+          
+              employeeData = {
+                fullName: recognizedName,
+                employeeId: recognizedName
+              };
+          
+              logToSheet(
+                recognized,
+                imageDataURL,
+                {
+                  latitude: "",
+                  longitude: ""
+                }
               );
             }
-            );
-          } else {
+          ); else {
             logToSheet(recognized, imageDataURL, {latitude:"", longitude:""});
           }
         }
