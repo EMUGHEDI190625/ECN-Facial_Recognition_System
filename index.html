@@ -62,15 +62,29 @@ let employeeData = {};    // Store latest employee info
 // ----------------------
 // Load face-api models
 async function loadModels() {
-  faceStatusEl.textContent = "⏳ Loading models...";
-  await Promise.all([
-    faceapi.nets.tinyFaceDetector.loadFromUri('https://justadudewhohacks.github.io/face-api.js/models/'),
-    faceapi.nets.faceLandmark68Net.loadFromUri('https://justadudewhohacks.github.io/face-api.js/models/'),
-    faceapi.nets.faceRecognitionNet.loadFromUri('https://justadudewhohacks.github.io/face-api.js/models/')
-  ]);
-  faceStatusEl.textContent = "✅ Models loaded. Fetching latest Form data...";
-  await fetchFormData();
-  startBtn.disabled = false;
+  try {
+    faceStatusEl.textContent = "⏳ Loading models...";
+
+    const MODEL_URL = "https://justadudewhohacks.github.io/face-api.js/models/";
+
+    await Promise.all([
+      faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL),
+      faceapi.nets.faceLandmark68Net.loadFromUri(MODEL_URL),
+      faceapi.nets.faceRecognitionNet.loadFromUri(MODEL_URL)
+    ]);
+
+    faceStatusEl.textContent = "✅ Models loaded. Fetching data...";
+
+    await fetchFormData();
+
+    startBtn.disabled = false;
+
+  } catch (err) {
+    console.error("Model loading failed:", err);
+    faceStatusEl.style.color = "red";
+    faceStatusEl.textContent =
+      "❌ Failed to load AI models. Check internet or model URL.";
+  }
 }
 
 // ----------------------
