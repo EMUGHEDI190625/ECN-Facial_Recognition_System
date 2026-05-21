@@ -211,10 +211,10 @@ async function loadAuthorizedFaces() {
 
 // ----------------------
 // Send attendance to Google Sheet
-sync function logToSheet(employeeName, recognized, imageDataURL, coords) {
+async function logToSheet(recognized, imageDataURL, coords) {
   const logData = {
-    employeeId: employeeName,
-    fullName: employeeName,
+    employeeId: employeeData.employeeId,
+    fullName: employeeData.fullName,
     recognized: recognized ? "Authorized" : "Unauthorized",
     recognizeFaceImagelink: recognized ? imageDataURL : "",
     notRecognizeFaceImagelink: !recognized ? imageDataURL : "",
