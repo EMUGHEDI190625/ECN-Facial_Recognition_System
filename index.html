@@ -230,7 +230,7 @@ async function logToSheet(employeeName, recognized, imageDataURL, coords) {
   };
 
   try {
-    const response = await fetch("https://script.google.com/macros/s/AKfycbz6PHm-lQ8p7Vifb5KXD-ErFcbwNcA6RuKP2XZ2PXf3VJaWNh_N6yNj8ErJonI_tLf-/exec", { 
+    const response = await fetch("https://script.google.com/macros/s/AKfycbyTeECbU9dP_MR68XvCp8K5pmteMdzV7MhMG8PgcE-iKiG4wOvqX5lSUWct0CTJS0_slw/exec", { 
       method: "POST",
       
       body: JSON.stringify(logData),
