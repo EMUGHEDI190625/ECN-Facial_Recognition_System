@@ -69,7 +69,6 @@ async function loadModels() {
     faceapi.nets.faceRecognitionNet.loadFromUri('https://justadudewhohacks.github.io/face-api.js/models/')
   ]);
   faceStatusEl.textContent = "✅ Models loaded. Fetching latest Form data...";
-  await fetchFormData();
   startBtn.disabled = false;
 }
 
@@ -174,43 +173,40 @@ async function loadAuthorizedFaces() {
 
 // ----------------------
 // Send attendance to Google Sheet
-async function logToSheet(recognized, imageDataURL, coords) {
+async function logToSheet(name, recognized, imageDataURL, coords) {
+
   const logData = {
-      employeeId: employeeData.employeeId,
-      fullName: employeeData.fullName,
-      recognized: recognized ? "Authorized" : "Unauthorized",
-
-      // ALWAYS send image (important)
-      faceImage: imageDataURL,
-
-      latitude: coords.latitude,
-      longitude: coords.longitude,
-      time: new Date().toISOString()
-    };
+    employeeId: name,   // 👈 use face result
+    fullName: name,     // 👈 same for now
+    recognized: recognized ? "Authorized" : "Unauthorized",
+    faceImage: imageDataURL,
+    latitude: coords.latitude,
+    longitude: coords.longitude,
+    time: new Date().toISOString()
+  };
 
   try {
-    const response = await fetch("https://script.google.com/macros/s/AKfycbyQsGnOG_KiA88MFC2uWrSvIZFcsTWIECctu7TS8yG9TKicR_dHD-YF0JYD79q2fHkl/exec", { 
+    const response = await fetch("https://script.google.com/macros/s/AKfycbyQsGnOG_KiA88MFC2uWrSvIZFcsTWIECctu7TS8yG9TKicR_dHD-YF0JYD79q2fHkl/exec", {
       method: "POST",
-      
-      body: JSON.stringify(logData),
-      
+      body: JSON.stringify(logData)
     });
+
     const result = await response.json();
-    if(result.success){
+
+    if (result.success) {
+      sheetStatusEl.textContent = "✅ Logged successfully";
       sheetStatusEl.style.color = "green";
-      sheetStatusEl.textContent = "✅ Attendance Successfully Logged to System";
-      sheetStatusEl.style.color = "green";
-      sheetStatusEl.style.fontSize = "18px";
-      sheetStatusEl.style.fontWeight = "bold";
     } else {
+      sheetStatusEl.textContent = "❌ Error: " + result.error;
       sheetStatusEl.style.color = "red";
-      sheetStatusEl.textContent = "❌ Error sending to sheet: " + result.error;
     }
-  } catch(err) {
+
+  } catch (err) {
+    sheetStatusEl.textContent = "❌ Network error: " + err.message;
     sheetStatusEl.style.color = "red";
-    sheetStatusEl.textContent = "❌ Error sending to sheet: " + err.message;
   }
 }
+
 
 // ----------------------
 // Start camera & face detection
@@ -234,7 +230,8 @@ startBtn.onclick = async () => {
 
       for (let i = 0; i < resized.length; i++) {
         const result = faceMatcher.findBestMatch(resized[i].descriptor);
-        const recognized = result.label !== "unknown";
+        const employeeName = result.label;
+        const recognized = employeeName !== "unknown";
         const statusText = recognized ? `Authorized: ${result.label}` : "Unauthorized";
         const timeNow = new Date().toLocaleTimeString();
 
