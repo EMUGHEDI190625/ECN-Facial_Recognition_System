@@ -158,18 +158,63 @@ async function fetchFormData() {
 // Load authorized faces
 async function loadAuthorizedFaces() {
   labeledDescriptors = [];
-  const authorizedNames = ["John Doe", "Jane Smith", "Ikata Kenoye"];
-  for (const name of authorizedNames) {
+
+  const authorizedFaces = [
+    {
+      name: "Ikata Kenoye",
+      employeeId: "ECN_P_21",
+      image: "Ikata_Kenoye.jpg"
+    },
+    {
+      name: "John Doe",
+      employeeId: "EMP001",
+      image: "John_Doe.jpg"
+    },
+    {
+      name: "Jane Smith",
+      employeeId: "EMP002",
+      image: "Jane_Smith.jpg"
+    }
+  ];
+
+  for (const person of authorizedFaces) {
     try {
-      const img = await faceapi.fetchImage(`https://raw.githubusercontent.com/EMUGHEDI190625/face-models/main/images/${name}.jpg`);
-      const detection = await faceapi.detectSingleFace(img, new faceapi.TinyFaceDetectorOptions())
-        .withFaceLandmarks().withFaceDescriptor();
+
+      const img = await faceapi.fetchImage(
+        `https://raw.githubusercontent.com/EMUGHEDI190625/face-models/main/images/${person.image}`
+      );
+
+      const detection =
+        await faceapi
+          .detectSingleFace(
+            img,
+            new faceapi.TinyFaceDetectorOptions()
+          )
+          .withFaceLandmarks()
+          .withFaceDescriptor();
+
       if (detection) {
-        labeledDescriptors.push(new faceapi.LabeledFaceDescriptors(name, [detection.descriptor]));
+        labeledDescriptors.push(
+          new faceapi.LabeledFaceDescriptors(
+            person.name,
+            [detection.descriptor]
+          )
+        );
       }
-    } catch(err) { console.error(err); }
+
+    } catch (err) {
+      console.error(
+        "Failed loading:",
+        person.name,
+        err
+      );
+    }
   }
-  faceMatcher = new faceapi.FaceMatcher(labeledDescriptors, 0.6);
+
+  faceMatcher = new faceapi.FaceMatcher(
+    labeledDescriptors,
+    0.6
+  );
 }
 
 // ----------------------
@@ -229,14 +274,20 @@ startBtn.onclick = async () => {
       for (let i = 0; i < resized.length; i++) {
         const result = faceMatcher.findBestMatch(resized[i].descriptor);
         const recognized = result.label !== "unknown";
+        if (!recognized) continue;
         const statusText = recognized ? `Authorized: ${result.label}` : "Unauthorized";
         const timeNow = new Date().toLocaleTimeString();
 
         const box = resized[i].detection.box;
         new faceapi.draw.DrawBox(box, { label: `${statusText} | ${timeNow}` }).draw(canvas);
         faceStatusEl.textContent = `Face detected: ${statusText} | ${timeNow}`;
+        
+        const recognizedPerson =
+        authorizedFaces.find(
+          p => p.name === result.label
+        );
 
-        const recognizedName = result.label;
+if (!recognizedPerson) continue;
 
         if (!recognizedToday[recognizedName]) {
           recognizedToday[recognizedName] = {};
@@ -256,28 +307,28 @@ startBtn.onclick = async () => {
 
           // Get location
           if (navigator.geolocation) {
+
             navigator.geolocation.getCurrentPosition(
+
             (pos) => {
-          
+
               employeeData = {
-                fullName: recognizedName,
-                employeeId: recognizedName
-              };
-          
+              fullName: recognizedPerson.name,
+              employeeId: recognizedPerson.employeeId
+            };
               logToSheet(
                 recognized,
                 imageDataURL,
                 pos.coords
               );
             },
-          
+
             () => {
-          
+
               employeeData = {
-                fullName: recognizedName,
-                employeeId: recognizedName
-              };
-          
+              fullName: recognizedPerson.name,
+              employeeId: recognizedPerson.employeeId
+            };
               logToSheet(
                 recognized,
                 imageDataURL,
@@ -287,10 +338,25 @@ startBtn.onclick = async () => {
                 }
               );
             }
-          ); else {
-            logToSheet(recognized, imageDataURL, {latitude:"", longitude:""});
-          }
-        }
+
+            );
+
+            } else {
+
+            employeeData = {
+            fullName: recognizedName,
+            employeeId: recognizedName
+            };
+
+            logToSheet(
+            recognized,
+            imageDataURL,
+            {
+              latitude: "",
+              longitude: ""
+            }
+            );
+            }
       }
     }, 2000);
 
