@@ -213,11 +213,18 @@ async function loadAuthorizedFaces() {
 // Send attendance to Google Sheet
 async function logToSheet(employeeName, recognized, imageDataURL, coords) {
   const logData = {
+    // employeeId: employeeName,
+    // fullName: employeeName,
+    // recognized: recognized ? "Authorized" : "Unauthorized",
+    // faceImage: imageDataURL,
+    // recognizeFaceImagelink: recognized ? imageDataURL : "",
+    // notRecognizeFaceImagelink: !recognized ? imageDataURL : "",
+    // latitude: coords.latitude,
+    // longitude: coords.longitude
     employeeId: employeeName,
     fullName: employeeName,
     recognized: recognized ? "Authorized" : "Unauthorized",
-    recognizeFaceImagelink: recognized ? imageDataURL : "",
-    notRecognizeFaceImagelink: !recognized ? imageDataURL : "",
+    faceImage: imageDataURL,   // 🔥 MUST be included
     latitude: coords.latitude,
     longitude: coords.longitude
   };
