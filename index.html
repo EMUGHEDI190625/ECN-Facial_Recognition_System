@@ -195,7 +195,10 @@ async function logToSheet(recognized, imageDataURL, coords) {
     const result = await response.json();
     if(result.success){
       sheetStatusEl.style.color = "green";
-      sheetStatusEl.textContent = "✅ Attendance sent";
+      sheetStatusEl.textContent = "✅ Attendance Successfully Logged to System";
+      sheetStatusEl.style.color = "green";
+      sheetStatusEl.style.fontSize = "18px";
+      sheetStatusEl.style.fontWeight = "bold";
     } else {
       sheetStatusEl.style.color = "red";
       sheetStatusEl.textContent = "❌ Error sending to sheet: " + result.error;
