@@ -1,4 +1,4 @@
-<!DOCTYPE html> 
+Still getting Failed to fetch from data. Enter ID manually<!DOCTYPE html> 
 <html>
 <head>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -62,29 +62,15 @@ let employeeData = {};    // Store latest employee info
 // ----------------------
 // Load face-api models
 async function loadModels() {
-  try {
-    faceStatusEl.textContent = "⏳ Loading models...";
-
-    const MODEL_URL = "https://justadudewhohacks.github.io/face-api.js/models/";
-
-    await Promise.all([
-      faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL),
-      faceapi.nets.faceLandmark68Net.loadFromUri(MODEL_URL),
-      faceapi.nets.faceRecognitionNet.loadFromUri(MODEL_URL)
-    ]);
-
-    faceStatusEl.textContent = "✅ Models loaded. Fetching data...";
-
-    await fetchFormData();
-
-    startBtn.disabled = false;
-
-  } catch (err) {
-    console.error("Model loading failed:", err);
-    faceStatusEl.style.color = "red";
-    faceStatusEl.textContent =
-      "❌ Failed to load AI models. Check internet or model URL.";
-  }
+  faceStatusEl.textContent = "⏳ Loading models...";
+  await Promise.all([
+    faceapi.nets.tinyFaceDetector.loadFromUri('https://justadudewhohacks.github.io/face-api.js/models/'),
+    faceapi.nets.faceLandmark68Net.loadFromUri('https://justadudewhohacks.github.io/face-api.js/models/'),
+    faceapi.nets.faceRecognitionNet.loadFromUri('https://justadudewhohacks.github.io/face-api.js/models/')
+  ]);
+  faceStatusEl.textContent = "✅ Models loaded. Fetching latest Form data...";
+  await fetchFormData();
+  startBtn.disabled = false;
 }
 
 // ----------------------
@@ -172,63 +158,18 @@ async function fetchFormData() {
 // Load authorized faces
 async function loadAuthorizedFaces() {
   labeledDescriptors = [];
-
-  const authorizedFaces = [
-    {
-      name: "Ikata Kenoye",
-      employeeId: "ECN_P_21",
-      image: "Ikata_Kenoye.jpg"
-    },
-    {
-      name: "John Doe",
-      employeeId: "EMP001",
-      image: "John_Doe.jpg"
-    },
-    {
-      name: "Jane Smith",
-      employeeId: "EMP002",
-      image: "Jane_Smith.jpg"
-    }
-  ];
-
-  for (const person of authorizedFaces) {
+  const authorizedNames = ["John Doe", "Jane Smith", "Ikata Kenoye"];
+  for (const name of authorizedNames) {
     try {
-
-      const img = await faceapi.fetchImage(
-        `https://raw.githubusercontent.com/EMUGHEDI190625/face-models/main/images/${person.image}`
-      );
-
-      const detection =
-        await faceapi
-          .detectSingleFace(
-            img,
-            new faceapi.TinyFaceDetectorOptions()
-          )
-          .withFaceLandmarks()
-          .withFaceDescriptor();
-
+      const img = await faceapi.fetchImage(`https://raw.githubusercontent.com/EMUGHEDI190625/face-models/main/images/${name}.jpg`);
+      const detection = await faceapi.detectSingleFace(img, new faceapi.TinyFaceDetectorOptions())
+        .withFaceLandmarks().withFaceDescriptor();
       if (detection) {
-        labeledDescriptors.push(
-          new faceapi.LabeledFaceDescriptors(
-            person.name,
-            [detection.descriptor]
-          )
-        );
+        labeledDescriptors.push(new faceapi.LabeledFaceDescriptors(name, [detection.descriptor]));
       }
-
-    } catch (err) {
-      console.error(
-        "Failed loading:",
-        person.name,
-        err
-      );
-    }
+    } catch(err) { console.error(err); }
   }
-
-  faceMatcher = new faceapi.FaceMatcher(
-    labeledDescriptors,
-    0.6
-  );
+  faceMatcher = new faceapi.FaceMatcher(labeledDescriptors, 0.6);
 }
 
 // ----------------------
@@ -288,29 +229,19 @@ startBtn.onclick = async () => {
       for (let i = 0; i < resized.length; i++) {
         const result = faceMatcher.findBestMatch(resized[i].descriptor);
         const recognized = result.label !== "unknown";
-        if (!recognized) continue;
         const statusText = recognized ? `Authorized: ${result.label}` : "Unauthorized";
         const timeNow = new Date().toLocaleTimeString();
 
         const box = resized[i].detection.box;
         new faceapi.draw.DrawBox(box, { label: `${statusText} | ${timeNow}` }).draw(canvas);
         faceStatusEl.textContent = `Face detected: ${statusText} | ${timeNow}`;
-        
-        const recognizedPerson =
-        authorizedFaces.find(
-          p => p.name === result.label
-        );
 
-if (!recognizedPerson) continue;
-
-        if (!recognizedToday[recognizedName]) {
-          recognizedToday[recognizedName] = {};
-        }
-
+        const empId = employeeData.employeeId;
+        if (!recognizedToday[empId]) recognizedToday[empId] = {};
         const today = new Date().toISOString().split("T")[0];
 
-        if (!recognizedToday[recognizedName][today]) {
-          recognizedToday[recognizedName][today] = true;
+        if (!recognizedToday[empId][today]) {
+          recognizedToday[empId][today] = true;
 
           // Capture image
           const captureCanvas = document.createElement("canvas");
@@ -321,56 +252,14 @@ if (!recognizedPerson) continue;
 
           // Get location
           if (navigator.geolocation) {
-
             navigator.geolocation.getCurrentPosition(
-
-            (pos) => {
-
-              employeeData = {
-              fullName: recognizedPerson.name,
-              employeeId: recognizedPerson.employeeId
-            };
-              logToSheet(
-                recognized,
-                imageDataURL,
-                pos.coords
-              );
-            },
-
-            () => {
-
-              employeeData = {
-              fullName: recognizedPerson.name,
-              employeeId: recognizedPerson.employeeId
-            };
-              logToSheet(
-                recognized,
-                imageDataURL,
-                {
-                  latitude: "",
-                  longitude: ""
-                }
-              );
-            }
-
+              (pos) => logToSheet(recognized, imageDataURL, pos.coords),
+              () => logToSheet(recognized, imageDataURL, {latitude:"", longitude:""})
             );
-
-            } else {
-
-            employeeData = {
-            fullName: recognizedName,
-            employeeId: recognizedName
-            };
-
-            logToSheet(
-            recognized,
-            imageDataURL,
-            {
-              latitude: "",
-              longitude: ""
-            }
-            );
-            }
+          } else {
+            logToSheet(recognized, imageDataURL, {latitude:"", longitude:""});
+          }
+        }
       }
     }, 2000);
 
