@@ -308,9 +308,16 @@ startBtn.onclick = async () => {
           // Capture image
           
           const captureCanvas = document.createElement("canvas");
-          captureCanvas.width = video.videoWidth;
-          captureCanvas.height = video.videoHeight;
-          captureCanvas.getContext("2d").drawImage(video, 0, 0);
+          captureCanvas.width = 200;
+          captureCanvas.height = 150;
+
+          captureCanvas.getContext("2d").drawImage(
+            video,
+            0,
+            0,
+            200,
+            150
+          );
 
           const imageDataURL = captureCanvas.toDataURL("image/jpeg", 0.4);
 
