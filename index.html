@@ -63,13 +63,19 @@ let employeeData = {};    // Store latest employee info
 // Load face-api models
 async function loadModels() {
   faceStatusEl.textContent = "⏳ Loading models...";
-  await Promise.all([
-    faceapi.nets.tinyFaceDetector.loadFromUri('https://justadudewhohacks.github.io/face-api.js/models/'),
-    faceapi.nets.faceLandmark68Net.loadFromUri('https://justadudewhohacks.github.io/face-api.js/models/'),
-    faceapi.nets.faceRecognitionNet.loadFromUri('https://justadudewhohacks.github.io/face-api.js/models/')
-  ]);
-  faceStatusEl.textContent = "✅ Models loaded. Fetching latest Form data...";
-  startBtn.disabled = false;
+
+await Promise.all([
+  faceapi.nets.tinyFaceDetector.loadFromUri('https://justadudewhohacks.github.io/face-api.js/models/'),
+  faceapi.nets.faceLandmark68Net.loadFromUri('https://justadudewhohacks.github.io/face-api.js/models/'),
+  faceapi.nets.faceRecognitionNet.loadFromUri('https://justadudewhohacks.github.io/face-api.js/models/')
+]);
+
+faceStatusEl.textContent = "✅ Models loaded. Fetching latest Form data...";
+
+// 🔥 ADD THIS LINE (YOU MISSED IT)
+await fetchFormData();
+
+startBtn.disabled = false;
 }
 
 // ----------------------
