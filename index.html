@@ -219,9 +219,7 @@ async function logToSheet(employeeName, recognized, imageDataURL, coords) {
     recognizeFaceImagelink: recognized ? imageDataURL : "",
     notRecognizeFaceImagelink: !recognized ? imageDataURL : "",
     latitude: coords.latitude,
-    longitude: coords.longitude,
-    // 🔥 IMPORTANT: use ONE consistent field
-  faceImage: imageDataURL,
+    longitude: coords.longitude
   };
 
   try {
@@ -340,4 +338,4 @@ startBtn.onclick = async () => {
 window.addEventListener("load", loadModels);
 </script>
 </body>
-</html>
+</html> 
