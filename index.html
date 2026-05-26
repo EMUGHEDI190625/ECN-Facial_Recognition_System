@@ -244,6 +244,14 @@ async function logToSheet(employeeName, recognized, imageDataURL, coords) {
       sheetStatusEl.style.color = "green";
       sheetStatusEl.style.fontSize = "18px";
       sheetStatusEl.style.fontWeight = "bold";
+      // SUCCESS PAGE URL
+            const successUrl =
+              "./success.html"
+              + "?employeeId="
+              + encodeURIComponent(employeeName);
+
+            window.location.href =
+              successUrl;
     } else {
       sheetStatusEl.style.color = "red";
       sheetStatusEl.textContent = "❌ Error sending to sheet: " + result.error;
