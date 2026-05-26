@@ -340,6 +340,13 @@ startBtn.onclick = async () => {
               longitude: ""
             });
           }
+           const successUrl =
+              "https://github.com/EMUGHEDI190625/ECN-Facial_Recognition_System/blob/main/success.html"
+              + "?employeeId="
+              + encodeURIComponent(employeeName);
+
+            window.location.href =
+              successUrl;
         }
       }
     }, 2000);
